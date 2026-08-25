@@ -40,6 +40,10 @@ public:
   // Sets the specified LED (0-3, from left to right) on/off.
   void set_led(unsigned int led_number, bool on);
 
+  // Returns the current battery level of the Wiimote as a percentage (integer
+  // between 0-100)
+  uint8_t get_battery() const;
+
 private:
   explicit WiimoteDevice(struct xwii_iface *iface);
 

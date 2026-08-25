@@ -162,3 +162,14 @@ void WiimoteDevice::set_led(unsigned int led_number, bool on) {
                              " (Error Code: " + std::to_string(err) + ")");
   }
 }
+
+uint8_t WiimoteDevice::get_battery() const {
+  uint8_t battery_percent;
+  int err = xwii_iface_get_battery(iface_, &battery_percent);
+  if (err) {
+    throw std::runtime_error(
+        "Failed to read battery (Error Code: " + std::to_string(err) + ")");
+  }
+
+  return battery_percent;
+}

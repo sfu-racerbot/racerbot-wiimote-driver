@@ -1,6 +1,7 @@
 #include "wiimote_driver_node.hpp"
 #include "racerbot_wiimote_msgs/msg/wiimote_buttons_raw.hpp"
 #include "racerbot_wiimote_msgs/msg/wiimote_led.hpp"
+#include "racerbot_wiimote_msgs/msg/wiimote_raw.hpp"
 
 #include <chrono>
 #include <rclcpp/logging.hpp>
@@ -15,6 +16,7 @@ constexpr int kDefaultPublisherQueueDepth = 1;
 
 constexpr char wiimoteButtonsTopicName[] = "/wiimote/buttons";
 constexpr char wiimoteLEDTopicName[] = "/wiimote/led";
+constexpr char wiimoteTopicName[] = "/wiimote";
 
 } // namespace
 
@@ -29,6 +31,9 @@ WiimoteDriverNode::WiimoteDriverNode()
   raw_buttons_publisher_ =
       this->create_publisher<racerbot_wiimote_msgs::msg::WiimoteButtonsRaw>(
           wiimoteButtonsTopicName, params.publisher_queue_depth);
+  raw_wiimote_publisher_ =
+      this->create_publisher<racerbot_wiimote_msgs::msg::WiimoteRaw>(
+          wiimoteTopicName, params.publisher_queue_depth);
 
   raw_led_subscriber_ =
       this->create_subscription<racerbot_wiimote_msgs::msg::WiimoteLED>(
@@ -49,6 +54,7 @@ void WiimoteDriverNode::poll_wiimote() {
   try {
     device_.update();
     publish_raw_button_state();
+    publish_raw_info();
 
     // Have a light on to show the deadman switch is being held
     if (!disable_deadman_led_) {
@@ -150,4 +156,13 @@ void WiimoteDriverNode::led_callback(
   device_.set_led(1, msg->led_2);
   device_.set_led(2, msg->led_3);
   device_.set_led(3, msg->led_4);
+}
+
+void WiimoteDriverNode::publish_raw_info() {
+  racerbot_wiimote_msgs::msg::WiimoteRaw msg;
+  msg.header.stamp = this->now();
+
+  msg.battery_percentage = device_.get_battery();
+
+  raw_wiimote_publisher_->publish(msg);
 }

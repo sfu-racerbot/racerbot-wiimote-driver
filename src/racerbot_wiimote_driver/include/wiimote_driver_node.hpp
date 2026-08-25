@@ -3,9 +3,11 @@
 
 #include "racerbot_wiimote_msgs/msg/wiimote_buttons_raw.hpp"
 #include "racerbot_wiimote_msgs/msg/wiimote_led.hpp"
+#include "racerbot_wiimote_msgs/msg/wiimote_raw.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/joy.hpp"
 #include "wiimote_device.hpp"
+#include <rclcpp/publisher.hpp>
 #include <rclcpp/subscription.hpp>
 
 class WiimoteDriverNode : public rclcpp::Node {
@@ -28,6 +30,8 @@ private:
   // publishers/subscribers for raw Wiimote messages
   rclcpp::Publisher<racerbot_wiimote_msgs::msg::WiimoteButtonsRaw>::SharedPtr
       raw_buttons_publisher_;
+  rclcpp::Publisher<racerbot_wiimote_msgs::msg::WiimoteRaw>::SharedPtr
+      raw_wiimote_publisher_;
 
   rclcpp::Subscription<racerbot_wiimote_msgs::msg::WiimoteLED>::SharedPtr
       raw_led_subscriber_;
@@ -35,6 +39,8 @@ private:
   void poll_wiimote();
   void publish_joy_state();
   void publish_raw_button_state();
+  void publish_raw_info();
+
   void
   led_callback(const racerbot_wiimote_msgs::msg::WiimoteLED::SharedPtr msg);
 
