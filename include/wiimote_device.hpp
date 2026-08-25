@@ -38,6 +38,9 @@ public:
     // as not pressed.
     bool is_button_down(unsigned int key_code) const;
 
+    // Sets the specified LED (0-3, from left to right) on/off.
+    void set_led(unsigned int led_number, bool on);
+
 private:
     explicit WiimoteDevice(struct xwii_iface *iface);
 
@@ -64,6 +67,7 @@ private:
     struct xwii_iface *iface_ = nullptr;
     int fd_ = -1;
     std::unordered_map<unsigned int, bool> button_state_;
+    int led_status_[4];
 };
 
 #endif

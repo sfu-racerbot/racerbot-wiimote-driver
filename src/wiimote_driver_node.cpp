@@ -14,6 +14,9 @@ WiimoteDriverNode::WiimoteDriverNode()
 
   timer_ = this->create_wall_timer(5ms, [this]()
                                    { poll_wiimote(); });
+
+  // Make sure first player light is enabled to show the Wiimote is connected
+  device_.set_led(0, true);
 }
 
 void WiimoteDriverNode::poll_wiimote()
@@ -25,6 +28,16 @@ void WiimoteDriverNode::poll_wiimote()
     log_transition("A", XWII_KEY_A, a_button_down_);
     log_transition("B", XWII_KEY_B, b_button_down_);
     log_transition("2", XWII_KEY_Y, two_button_down_);
+
+    // Have a light on to show the deadman switch is being held
+    if (two_button_down_)
+    {
+      device_.set_led(1, true);
+    }
+    else
+    {
+      device_.set_led(1, false);
+    }
 
     publish_joy_state();
   }
@@ -41,8 +54,8 @@ void WiimoteDriverNode::log_transition(const char *label, unsigned int key_code,
   if (is_down != was_down)
   {
     was_down = is_down;
-    RCLCPP_INFO(this->get_logger(), "%s Button %s", label,
-                is_down ? "Pressed" : "Released");
+    RCLCPP_DEBUG(this->get_logger(), "%s Button %s", label,
+                 is_down ? "Pressed" : "Released");
   }
 }
 

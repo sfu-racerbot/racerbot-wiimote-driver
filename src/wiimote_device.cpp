@@ -182,3 +182,13 @@ bool WiimoteDevice::is_button_down(unsigned int key_code) const
     auto it = button_state_.find(key_code);
     return it != button_state_.end() && it->second;
 }
+
+void WiimoteDevice::set_led(unsigned int led_number, bool on)
+{
+    led_status_[led_number] = on;
+    int err = xwii_iface_set_led(iface_, XWII_LED(led_number + 1), &led_status_[led_number]);
+    if (err)
+    {
+        throw std::runtime_error("Failed to set LED " + std::to_string(led_number) + " (Error Code: " + std::to_string(err) + ")");
+    }
+}

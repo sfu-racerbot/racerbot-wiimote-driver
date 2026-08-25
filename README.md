@@ -6,7 +6,7 @@ The node publishes inputs to the `/joy` ROS topic and uses `sensor_msgs::msg::Jo
 ## Features/Roadmap
 - [x] Detection of A, B and 2 buttons (for acceleration, braking, and the "deadman" switch respectively)
 - [ ] Motion controls mapping to joystick inputs
-- [ ] LED Status indicators
+- [x] LED Status indicators
 
 ## Usage
 
@@ -26,3 +26,12 @@ colcon build --packages-select racerbot_wiimote_driver
 ```bash
 ros2 launch racerbot_wiimote_driver wiimote_driver_launch.py
 ```
+
+### Wiimote LED Reference
+The driver sets the LEDs on the Wiimote to indicate various things to the user. Here is what each LED means, moving from left to right on the Wiimote being held
+upright.
+
+- **LED 0 (Player One LED):** Indicates the Wiimote is connected.
+- **LED 1 (Player Two LED):** Indicates the "deadman" switch is engaged, meaning your autonomous code will run (if you have a proper deadman switch built into your code)
+
+You can easily change the LED behaviour using the `WiimoteDevice::set_led` function.
