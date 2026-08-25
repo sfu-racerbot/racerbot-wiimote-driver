@@ -32,6 +32,9 @@ sudo apt install -y xwiimote libxwiimote-dev pkg-config
 ```
 ---
 
+## Connecting a Wiimote to Linux
+Since Wiimotes just use Bluetooth, you can connect it either using the `bluetoothctl` CLI or the GUI Bluetooth applet included with your Linux distro. It'll appear as something like: `Nintendo RVL-CNT-xx-xx`
+
 ## Installation & Build
 
 1. Clone the repository into the `src` directory of your ROS 2 workspace:
