@@ -10,7 +10,8 @@
 namespace
 {
     // Local RAII helper so struct xwii_monitor* is always released, even if
-    // find_device_path() returns early.
+    // find_device_path() returns early. Kept private to this translation unit
+    // since nothing outside needs to touch a monitor directly.
     struct MonitorDeleter
     {
         void operator()(struct xwii_monitor *mon) const noexcept
@@ -22,7 +23,7 @@ namespace
         }
     };
     using MonitorPtr = std::unique_ptr<struct xwii_monitor, MonitorDeleter>;
-}
+} // namespace
 
 std::optional<std::string> WiimoteDevice::find_device_path()
 {
@@ -78,7 +79,8 @@ WiimoteDevice::WiimoteDevice(struct xwii_iface *iface)
 }
 
 WiimoteDevice::WiimoteDevice(WiimoteDevice &&other) noexcept
-    : iface_(other.iface_), fd_(other.fd_)
+    : iface_(other.iface_), fd_(other.fd_),
+      button_state_(std::move(other.button_state_))
 {
     other.release();
 }
@@ -96,6 +98,7 @@ WiimoteDevice &WiimoteDevice::operator=(WiimoteDevice &&other) noexcept
         }
         iface_ = other.iface_;
         fd_ = other.fd_;
+        button_state_ = std::move(other.button_state_);
         other.release();
     }
     return *this;
@@ -116,13 +119,14 @@ void WiimoteDevice::release() noexcept
     fd_ = -1;
 }
 
-bool WiimoteDevice::has_events(int timeout_ms) const
+bool WiimoteDevice::has_events() const
 {
     struct pollfd pfd{};
     pfd.fd = fd_;
     pfd.events = POLLIN;
 
-    int ready = poll(&pfd, 1, timeout_ms);
+    // A zero timeout means "check right now, don't block".
+    int ready = poll(&pfd, 1, 0);
     if (ready < 0)
     {
         if (errno == EINTR)
@@ -148,4 +152,33 @@ std::optional<xwii_event> WiimoteDevice::next_event()
     }
     throw std::runtime_error("Error reading Wiimote event: " +
                              std::to_string(err));
+}
+
+void WiimoteDevice::apply_event(const xwii_event &event)
+{
+    if (event.type != XWII_EVENT_KEY)
+    {
+        return;
+    }
+    button_state_[event.v.key.code] = (event.v.key.state == 1);
+}
+
+void WiimoteDevice::update()
+{
+    if (!has_events())
+    {
+        // Nothing pending; nothing to do.
+        return;
+    }
+
+    while (auto event = next_event())
+    {
+        apply_event(*event);
+    }
+}
+
+bool WiimoteDevice::is_button_down(unsigned int key_code) const
+{
+    auto it = button_state_.find(key_code);
+    return it != button_state_.end() && it->second;
 }
