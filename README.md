@@ -4,6 +4,9 @@ A ROS 2 driver node that interfaces with a Nintendo Wiimote (Wii Remote) for rob
 
 The node publishes standard joystick messages to `/joy` (`sensor_msgs/msg/Joy`) and provides custom topics for raw Wiimote sensor data and LED control.
 
+The code is split into two main classes:
+- `WiimoteDevice` A C++ wrapper around `xwiimote`
+- `WiimoteDriverNode` A ROS2 node that uses `WiimoteDevice` to publish/subscribe to various ROS2 topics. Also handles things such as the deadman LED
 ---
 
 ## Features
