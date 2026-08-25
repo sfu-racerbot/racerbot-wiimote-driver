@@ -22,7 +22,6 @@ private:
   int brake_button_index_ = 2;
   int deadman_button_index_ = 4;
   size_t num_buttons_ = 5;
-  bool disable_deadman_led_ = false;
 
   WiimoteDevice device_;
 
@@ -59,6 +58,8 @@ private:
 
   std::string joy_topic;
   int poll_period_ms;
+  bool raw_mode_ = false; // whether or not the drive should do things like the
+                          // deadman switch or publish joystick inputs
 
   // Accelerometer to Joystick input parameters
   int accelerometer_axis_index_ = 0;

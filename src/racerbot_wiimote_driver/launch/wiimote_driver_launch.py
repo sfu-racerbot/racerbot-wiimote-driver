@@ -6,6 +6,15 @@ from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 
 def generate_launch_description():
+    raw_mode_arg = DeclareLaunchArgument(
+        'raw_mode',
+        default_value='false',
+        description=(
+            'Runs the driver in raw mode meaning the deadman light control and joystick publishing are disabled.',
+            'Designed to be used when you want to have full manual control over the Wiimote'
+        )
+    )
+
     joy_topic_arg = DeclareLaunchArgument(
         'joy_topic',
         default_value='/joy',
@@ -34,15 +43,6 @@ def generate_launch_description():
         'deadman_button_index',
         default_value='4',
         description='Index in Joy.buttons for the deadman (2) button.',
-    )
-
-    disable_deadman_led_arg = DeclareLaunchArgument(
-        'disable_deadman_led',
-        default_value='false',
-        description=(
-            'Disable the built-in deadman switch LED behavior so another '
-            'node can control all Wiimote LEDs.'
-        ),
     )
 
     accelerometer_axis_index_arg = DeclareLaunchArgument(
@@ -108,6 +108,7 @@ def generate_launch_description():
         output='screen',
         emulate_tty=True,
         parameters=[{
+            'raw_mode': LaunchConfiguration('raw_mode'),
             'joy_topic': LaunchConfiguration('joy_topic'),
 
             'poll_period_ms': ParameterValue(
@@ -126,10 +127,6 @@ def generate_launch_description():
             'deadman_button_index': ParameterValue(
                 LaunchConfiguration('deadman_button_index'),
                 value_type=int,
-            ),
-            'disable_deadman_led': ParameterValue(
-                LaunchConfiguration('disable_deadman_led'),
-                value_type=bool,
             ),
 
             'accelerometer_axis_index': ParameterValue(
@@ -172,12 +169,12 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
+        raw_mode_arg,
         joy_topic_arg,
         poll_period_ms_arg,
         accelerate_button_index_arg,
         brake_button_index_arg,
         deadman_button_index_arg,
-        disable_deadman_led_arg,
         accelerometer_axis_index_arg,
         accelerometer_y_min_arg,
         accelerometer_y_center_arg,

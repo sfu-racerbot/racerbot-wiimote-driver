@@ -33,7 +33,15 @@ WiimoteDriverNode::WiimoteDriverNode()
 
   declare_parameters();
 
-  joy_publisher_ = this->create_publisher<sensor_msgs::msg::Joy>(joy_topic, 1);
+  if (raw_mode_)
+    RCLCPP_INFO(
+        this->get_logger(),
+        "Driver running in raw mode. No joystick input will be published.");
+
+  if (!raw_mode_)
+    joy_publisher_ =
+        this->create_publisher<sensor_msgs::msg::Joy>(joy_topic, 1);
+
   wiimote_buttons_publisher_ =
       this->create_publisher<racerbot_wiimote_msgs::msg::WiimoteButtons>(
           wiimoteButtonsTopicName, 1);
@@ -73,7 +81,7 @@ void WiimoteDriverNode::poll_wiimote() {
     publish_accelerometer();
 
     // Have a light on to show the deadman switch is being held
-    if (!disable_deadman_led_) {
+    if (!raw_mode_) {
       if (device_.is_button_down(XWII_KEY_TWO)) {
         device_.set_led(1, true);
       } else {
@@ -88,6 +96,9 @@ void WiimoteDriverNode::poll_wiimote() {
 }
 
 void WiimoteDriverNode::publish_joy_state() {
+  if (raw_mode_)
+    return;
+
   sensor_msgs::msg::Joy joy_msg;
   joy_msg.header.stamp = this->now();
 
@@ -126,9 +137,6 @@ void WiimoteDriverNode::declare_parameters() {
       "brake_button_index", kDefaultBrakeButtonIndex));
   deadman_button_index_ = static_cast<int>(this->declare_parameter<int64_t>(
       "deadman_button_index", kDefaultDeadmanButtonIndex));
-
-  this->declare_parameter<bool>("disable_deadman_led", false);
-  disable_deadman_led_ = this->get_parameter("disable_deadman_led").as_bool();
 
   // Size the buttons array to fit whichever configured index is largest.
   num_buttons_ = static_cast<size_t>(
@@ -185,6 +193,8 @@ void WiimoteDriverNode::declare_parameters() {
   }
 
   num_axes_ = static_cast<size_t>(accelerometer_axis_index_) + 1;
+
+  raw_mode_ = this->declare_parameter<bool>("raw_mode", false);
 }
 
 void WiimoteDriverNode::publish_button_state() {

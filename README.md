@@ -63,6 +63,9 @@ ros2 launch racerbot_wiimote_driver wiimote_driver_launch.py
 ```
 Configurable launch parameters are defined in [`launch/wiimote_driver_launch.py`](src/racerbot_wiimote_driver/launch/wiimote_driver_launch.py).
 
+You can also enable raw mode using `raw_mode:=true` which disables publishing to the joystick topic and disables the deadman LED. Use this when you
+want to have full manual control over the Wiimote.
+
 ---
 ## ROS 2 Interface
 
@@ -79,7 +82,7 @@ Configurable launch parameters are defined in [`launch/wiimote_driver_launch.py`
 
 | Topic | Message Type | Description |
 | --- | --- | --- |
-| `/wiimote/led` | `racerbot_wii_msgs/msg/WiimoteLED` | Set Wiimote LED states. *(Pass `disable_deadman_led:=true` parameter when overriding manually).* |
+| `/wiimote/led` | `racerbot_wii_msgs/msg/WiimoteLED` | Set Wiimote LED states. *(Pass `raw_mode:=true` parameter when overriding manually).* |
 | `/wiimote/rumble` | `racerbot_wii_msgs/msg/WiimoteRumble` | Either enables or disables the rumble motor built into the Wiimote |
 
 ---
@@ -91,7 +94,7 @@ When held upright (left to right):
 | LED | Name | Default Function |
 | --- | --- | --- |
 | **LED 0** | Player 1 | **Connection Active:** Solid when the Wiimote is connected. |
-| **LED 1** | Player 2 | **Deadman Switch:** Solid when the deadman switch (Button 2) is engaged. |
+| **LED 1** | Player 2 | **Deadman Switch:** Solid when the deadman switch (Button 2) is engaged. Unused in raw mode |
 | **LED 2** | Player 3 | *Unused (available for manual control).* |
 | **LED 3** | Player 4 | *Unused (available for manual control).* |
 
