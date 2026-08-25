@@ -6,6 +6,7 @@
 #include <memory>
 #include <stdexcept>
 #include <sys/poll.h>
+#include <xwiimote.h>
 
 namespace {
 // Local RAII helper so struct xwii_monitor* is always released, even if
@@ -51,7 +52,7 @@ WiimoteDevice WiimoteDevice::open() {
         std::to_string(err) + ")");
   }
 
-  err = xwii_iface_open(iface, XWII_IFACE_CORE);
+  err = xwii_iface_open(iface, XWII_IFACE_CORE | XWII_IFACE_WRITABLE);
   if (err) {
     xwii_iface_unref(iface);
     throw std::runtime_error("Failed to open core interface (error code: " +
@@ -156,8 +157,7 @@ void WiimoteDevice::set_led(unsigned int led_number, bool on) {
         "Invalid LED number. LED number must be between 0-3");
 
   led_status_[led_number] = on;
-  int err = xwii_iface_set_led(iface_, XWII_LED(led_number + 1),
-                               &led_status_[led_number]);
+  int err = xwii_iface_set_led(iface_, XWII_LED(led_number + 1), on);
   if (err) {
     throw std::runtime_error("Failed to set LED " + std::to_string(led_number) +
                              " (Error Code: " + std::to_string(err) + ")");
