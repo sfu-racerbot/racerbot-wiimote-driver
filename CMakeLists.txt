@@ -14,9 +14,9 @@ find_package(PkgConfig REQUIRED)
 
 pkg_check_modules(XWIIMOTE REQUIRED libxwiimote)
 
-add_executable(wiimote_driver_node src/wiimote_driver_node.cpp)
+add_executable(wiimote_driver_node src/wiimote_driver_node.cpp src/wiimote_device.cpp)
 
-target_include_directories(wiimote_driver_node PRIVATE ${XWIIMOTE_INCLUDE_DIRS})
+target_include_directories(wiimote_driver_node PRIVATE ${XWIIMOTE_INCLUDE_DIRS} include/)
 target_link_libraries(wiimote_driver_node ${XWIIMOTE_LIBRARIES})
 target_link_directories(wiimote_driver_node PRIVATE ${XWIIMOTE_LIBRARY_DIRS})
 
