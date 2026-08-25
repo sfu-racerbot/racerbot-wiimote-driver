@@ -1,98 +1,202 @@
-# ROS2 Wiimote Driver
-This is a node for ROS2 that allows the use of a Wiimote (Wii Remote) to be used to control your robot. 
+# ROS 2 Wiimote Driver
 
-The node publishes inputs to the `/joy` ROS topic and uses `sensor_msgs::msg::Joy` as it's message type.
+A ROS 2 driver node that interfaces with a Nintendo Wiimote (Wii Remote) for robot teleoperation and status monitoring.
 
-## Features/Roadmap
-- [x] Detection of A, B and 2 buttons (for acceleration, braking, and the "deadman" switch respectively)
-- [ ] Motion controls mapping to joystick inputs
-- [x] LED Status indicators
+The node publishes standard joystick messages to `/joy` (`sensor_msgs/msg/Joy`) and provides custom topics for raw Wiimote sensor data and LED control.
 
-## Usage
+---
 
-### Pre-Requisties
-You need to install `xwiimote`, `libxwiimote-dev`, and `pkg-config` (on Debian based systems; other OSes will have different names for these packages) for this node to work.
+## Features
 
-Currently only Linux is supported
-### Installation
-1. Clone this repository into your ROS2 workspace
-2. Run:
+* [x] Standard `/joy` teleop mapping (A, B, and 2 buttons mapped to accelerate, brake, and deadman switch).
+* [x] Motion control / accelerometer mapping to joystick axes.
+* [x] Onboard LED status indicators with customizable overrides.
+* [x] Dedicated ROS 2 topics for reading raw battery, accelerometer, and button states.
+
+---
+
+## Prerequisites
+
+> **Note:** Only Linux is currently supported.
+
+If you are using a system with a custom Linux image (such as on an NVIDIA Jetson), follow the steps [here](#wiimote-stays-flashing-when-connected-to-linux-via-bluetooth) first
+
+Install the required system dependencies (Debian/Ubuntu):
+
 ```bash
+sudo apt update
+sudo apt install -y xwiimote libxwiimote-dev pkg-config
+```
+---
+
+## Installation & Build
+
+1. Clone the repository into the `src` directory of your ROS 2 workspace:
+```bash
+cd ~/ros2_ws/src
+git clone <repository-url>
+```
+
+
+2. Resolve dependencies and build:
+```bash
+cd ~/ros2_ws
 rosdep update
 rosdep install --from-paths src --ignore-src -r -y
 colcon build --packages-select racerbot_wiimote_driver
+source install/setup.bash
 ```
-3. To launch the node run:
+---
+## Usage
+Launch the driver node:
+
 ```bash
 ros2 launch racerbot_wiimote_driver wiimote_driver_launch.py
 ```
+Configurable launch parameters are defined in [`launch/wiimote_driver_launch.py`](src/racerbot_wiimote_driver/launch/wiimote_driver_launch.py).
 
-### ROS2 Parameters
-- `joy_topic` Topic to publish `sensor_msgs/Joy` messages on. (default: `joy`)
-- `publisher_queue_depth` QoS queue depth for the joy publisher. (default: `1`)
-- `poll_period_ms` How often (ms) to poll the Wiimote for input. (default: `5`)
-- `accelerate_button_index` Index in `Joy.buttons` that reflects the accelerate (A) button. (default: `1`)
-- `brake_button_index` Index in `Joy.buttons` that reflects the brake (B) button. (default: `2`)
-- `deadman_button_index` Index in `Joy.buttons` that reflects the deadman (2) button. (default: `4`)
-- `disable_deadman_led` Disables the LED indicator when the deadman switch is engaged. Useful when manually controlling LEDs.
+---
+## ROS 2 Interface
 
-### ROS2 Topics
-- `/wiimote/battery` Publishes the Wiimote's current battery percentage. Uses the `racerbot_wii_msgs::msg::WiimoteBattery` message type.
-- `/wiimote/led` A topic in which you can publish messages to control the LEDs on the Wiimote. It is highly recommended to pass the ROS2 parameter `disable_deadman_led` when manually controlling the LEDs. Uses the `racerbot_wii_msgs::msg::WiimoteLED`.
-- `/wiimote/buttons` Returns which buttons on the Wiimote are being pressed at the current moment in time. Uses the `racerbot_wii_msgs::msg::WiimoteButtons` message type.
-- `/wiimote/accel` Returns the current data from the Wiimote's accelerometer. Uses the `racerbot_wii_msgs::msg::WiimoteAccelerometer` message type.
+### Published Topics
 
-### Wiimote LED Reference
-The driver sets the LEDs on the Wiimote to indicate various things to the user. Here is what each LED means, moving from left to right on the Wiimote being held
-upright.
+| Topic | Message Type | Description |
+| --- | --- | --- |
+| `/joy` | `sensor_msgs/msg/Joy` | Standard ROS joystick outputs from Wiimote inputs. |
+| `/wiimote/battery` | `racerbot_wii_msgs/msg/WiimoteBattery` | Current Wiimote battery percentage. |
+| `/wiimote/buttons` | `racerbot_wii_msgs/msg/WiimoteButtons` | Real-time button press states. |
+| `/wiimote/accel` | `racerbot_wii_msgs/msg/WiimoteAccelerometer` | Raw accelerometer readings. |
 
-- **LED 0 (Player One LED):** Indicates the Wiimote is connected.
-- **LED 1 (Player Two LED):** Indicates the "deadman" switch is engaged, meaning your autonomous code will run (if you have a proper deadman switch built into your code)
+### Subscribed Topics
 
-You can easily change the LED behaviour by publishing `racerbot_wii_msgs::msg::WiimoteLED` messages to `/wiimote/led`.
+| Topic | Message Type | Description |
+| --- | --- | --- |
+| `/wiimote/led` | `racerbot_wii_msgs/msg/WiimoteLED` | Set Wiimote LED states. *(Pass `disable_deadman_led:=true` parameter when overriding manually).* |
 
-## Known Issues/Troubleshooting
+---
 
-### Troubleshooting: LED permission denied (error -13)
- 
-If `set_led()` throws with error code `-13` (`EACCES`), it's a Linux file
-permissions issue, not a bug in the driver. The Wiimote's LED brightness
-files under `/sys/class/leds/` are owned by `root` and default to
-read-only for other users, so writing to them without elevated
-permissions fails.
- 
-**Fix (one-time):**
- 
+## Default LED Indicators
+
+When held upright (left to right):
+
+| LED | Name | Default Function |
+| --- | --- | --- |
+| **LED 0** | Player 1 | **Connection Active:** Solid when the Wiimote is connected. |
+| **LED 1** | Player 2 | **Deadman Switch:** Solid when the deadman switch (Button 2) is engaged. |
+| **LED 2** | Player 3 | *Unused (available for manual control).* |
+| **LED 3** | Player 4 | *Unused (available for manual control).* |
+
+---
+
+## Troubleshooting
+
+### Wiimote stays flashing when connected to Linux via Bluetooth
+
+This usually means that the `hid-wiimote` driver is not loaded into the Linux kernel. Alot of times custom Linux images (such as those used on NVIDIA Jetsons) strip
+out these drivers as they aren't needed.
+
+#### Permanent Fix
+You will need to compile the `hid_wiimote` driver from the upstream kernel repository and load it into the kernel.
+
+Install the compiler toolchain (this is for Debian based systems; it will differ slightly on other distros)
 ```bash
-sudo chmod 666 /sys/class/leds/*:blue:p*/brightness
+sudo apt update
+sudo apt install build-essential linux-headers-$(uname -r) wget
 ```
- 
-**Fix (permanent, recommended):** Create a udev rule so this is applied
-automatically every time a Wiimote connects, without needing `sudo`:
- 
+
+Download the driver source code. After it's done make sure to `cat` each file and see it's not a 404 error page.
+```bash
+mkdir -p ~/hid-wiimote-build && cd ~/hid-wiimote-build
+
+# Set kernel tag based on current running kernel major/minor version (e.g., v6.8)
+KERNEL_TAG="v$(uname -r | cut -d'.' -f1,2)"
+
+# Download driver source files and required header dependency
+for f in hid-wiimote.h hid-wiimote-core.c hid-wiimote-debug.c hid-wiimote-modules.c hid-ids.h; do
+  wget "https://raw.githubusercontent.com/torvalds/linux/${KERNEL_TAG}/drivers/hid/$f"
+done
+```
+
+Create the Makefile
+```bash
+cat > Makefile << 'EOF'
+obj-m := hid-wiimote.o
+hid-wiimote-y := hid-wiimote-core.o hid-wiimote-debug.o hid-wiimote-modules.o
+
+KDIR := /lib/modules/$(shell uname -r)/build
+PWD := $(shell pwd)
+ccflags-y := -I$(PWD)
+
+default:
+	$(MAKE) -C $(KDIR) M=$(PWD) modules
+
+clean:
+	$(MAKE) -C $(KDIR) M=$(PWD) clean
+EOF
+```
+
+Compile the module
+```bash
+make
+```
+
+Load the module into the kernel
+```bash
+# Load module into kernel
+sudo insmod hid-wiimote.ko
+
+# Verify module status
+lsmod | grep wiimote
+```
+
+Set the module to load on boot
+```bash
+sudo mkdir -p /lib/modules/$(uname -r)/updates
+sudo cp hid-wiimote.ko /lib/modules/$(uname -r)/updates/
+
+sudo depmod -a # update module dependency lists
+
+echo "hid-wiimote" | sudo tee /etc/modules-load.d/hid-wiimote.conf # tell the system to load hid-wiimote at boot
+
+sudo modprobe hid-wiimote # load the hid-wiimote driver
+```
+
+### LED Permission Denied (`error -13` / `EACCES`)
+
+If `set_led()` fails with error code `-13`, the Wiimote sysfs files under `/sys/class/leds/` lack write permissions for non-root users.
+
+#### Permanent Fix (Recommended)
+
+Create a `udev` rule to grant permissions automatically upon connection:
+
 ```bash
 sudo tee /etc/udev/rules.d/99-wiimote-leds.rules <<'EOF'
 ACTION=="add", SUBSYSTEM=="leds", KERNEL=="*:blue:p[0-3]", RUN+="/bin/chmod 666 /sys/class/leds/%k/brightness"
 EOF
- 
+
 sudo udevadm control --reload-rules
 sudo udevadm trigger
+
 ```
- 
-Then disconnect and reconnect the Wiimote so the rule applies to the new
-device.
- 
-**Verify it's actually a permissions issue:**
- 
+
+*Disconnect and reconnect the Wiimote after applying this rule.*
+
+#### Temporary Fix
+
 ```bash
+sudo chmod 666 /sys/class/leds/*:blue:p*/brightness
+
+```
+
+#### Verifying Permissions
+
+Check the file mode and test direct writes:
+
+```bash
+# Check owner and mode (should show read/write for all users: -rw-rw-rw-)
 ls -l /sys/class/leds/*:blue:p0/brightness
-```
- 
-If the owner/group is `root:root` and the mode doesn't include write
-access for your user (e.g. `-rw-r--r--`), that confirms it. You can also
-test a direct write to rule out anything in the driver code:
- 
-```bash
-echo 1 | sudo tee /sys/class/leds/*:blue:p0/brightness   # should succeed
-echo 1 | tee /sys/class/leds/*:blue:p0/brightness         # fails without the fix above
+
+# Test writing directly without sudo (should succeed without permission errors)
+echo 1 | tee /sys/class/leds/*:blue:p0/brightness
+
 ```
