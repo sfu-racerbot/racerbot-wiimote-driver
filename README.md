@@ -40,6 +40,7 @@ ros2 launch racerbot_wiimote_driver wiimote_driver_launch.py
 - `/wiimote/battery` Publishes the Wiimote's current battery percentage. Uses the `racerbot_wii_msgs::msg::WiimoteBattery` message type.
 - `/wiimote/led` A topic in which you can publish messages to control the LEDs on the Wiimote. It is highly recommended to pass the ROS2 parameter `disable_deadman_led` when manually controlling the LEDs. Uses the `racerbot_wii_msgs::msg::WiimoteLED`.
 - `/wiimote/buttons` Returns which buttons on the Wiimote are being pressed at the current moment in time. Uses the `racerbot_wii_msgs::msg::WiimoteButtons` message type.
+- `/wiimote/accel` Returns the current data from the Wiimote's accelerometer. Uses the `racerbot_wii_msgs::msg::WiimoteAccelerometer` message type.
 
 ### Wiimote LED Reference
 The driver sets the LEDs on the Wiimote to indicate various things to the user. Here is what each LED means, moving from left to right on the Wiimote being held

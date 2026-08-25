@@ -1,6 +1,7 @@
 #ifndef WIIMOTE_DRIVER_NODE_HPP_
 #define WIIMOTE_DRIVER_NODE_HPP_
 
+#include "racerbot_wiimote_msgs/msg/wiimote_accelerometer.hpp"
 #include "racerbot_wiimote_msgs/msg/wiimote_battery.hpp"
 #include "racerbot_wiimote_msgs/msg/wiimote_buttons.hpp"
 #include "racerbot_wiimote_msgs/msg/wiimote_led.hpp"
@@ -32,6 +33,8 @@ private:
       wiimote_buttons_publisher_;
   rclcpp::Publisher<racerbot_wiimote_msgs::msg::WiimoteBattery>::SharedPtr
       wiimote_battery_publisher_;
+  rclcpp::Publisher<racerbot_wiimote_msgs::msg::WiimoteAccelerometer>::SharedPtr
+      wiimote_accelerometer_publisher_;
 
   rclcpp::Subscription<racerbot_wiimote_msgs::msg::WiimoteLED>::SharedPtr
       wiimote_led_subscriber_;
@@ -40,6 +43,7 @@ private:
   void publish_joy_state();
   void publish_button_state();
   void publish_battery_info();
+  void publish_accelerometer();
 
   void
   led_callback(const racerbot_wiimote_msgs::msg::WiimoteLED::SharedPtr msg);

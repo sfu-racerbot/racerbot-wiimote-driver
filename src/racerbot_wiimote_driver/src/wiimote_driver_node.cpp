@@ -1,7 +1,9 @@
 #include "wiimote_driver_node.hpp"
+#include "racerbot_wiimote_msgs/msg/wiimote_accelerometer.hpp"
 #include "racerbot_wiimote_msgs/msg/wiimote_battery.hpp"
 #include "racerbot_wiimote_msgs/msg/wiimote_buttons.hpp"
 #include "racerbot_wiimote_msgs/msg/wiimote_led.hpp"
+#include "wiimote_device.hpp"
 
 #include <chrono>
 #include <rclcpp/logging.hpp>
@@ -17,6 +19,7 @@ constexpr int kDefaultPublisherQueueDepth = 1;
 constexpr char wiimoteButtonsTopicName[] = "/wiimote/buttons";
 constexpr char wiimoteLEDTopicName[] = "/wiimote/led";
 constexpr char wiimoteBatteryTopicName[] = "/wiimote/battery";
+constexpr char wiimoteAccelerometerTopicName[] = "/wiimote/accel";
 
 } // namespace
 
@@ -34,6 +37,9 @@ WiimoteDriverNode::WiimoteDriverNode()
   wiimote_battery_publisher_ =
       this->create_publisher<racerbot_wiimote_msgs::msg::WiimoteBattery>(
           wiimoteBatteryTopicName, params.publisher_queue_depth);
+  wiimote_accelerometer_publisher_ =
+      this->create_publisher<racerbot_wiimote_msgs::msg::WiimoteAccelerometer>(
+          wiimoteAccelerometerTopicName, params.publisher_queue_depth);
 
   wiimote_led_subscriber_ =
       this->create_subscription<racerbot_wiimote_msgs::msg::WiimoteLED>(
@@ -55,6 +61,7 @@ void WiimoteDriverNode::poll_wiimote() {
     device_.update();
     publish_button_state();
     publish_battery_info();
+    publish_accelerometer();
 
     // Have a light on to show the deadman switch is being held
     if (!disable_deadman_led_) {
@@ -84,22 +91,6 @@ void WiimoteDriverNode::publish_joy_state() {
       static_cast<int32_t>(device_.is_button_down(XWII_KEY_TWO));
 
   joy_publisher_->publish(joy_msg);
-}
-
-int main(int argc, char **argv) {
-  rclcpp::init(argc, argv);
-
-  try {
-    rclcpp::spin(std::make_shared<WiimoteDriverNode>());
-  } catch (const std::exception &e) {
-    RCLCPP_FATAL(rclcpp::get_logger("wiimote_driver_node"), "Fatal error: %s",
-                 e.what());
-    rclcpp::shutdown();
-    return 1;
-  }
-
-  rclcpp::shutdown();
-  return 0;
 }
 
 WiimoteDriverNode::StartupParams WiimoteDriverNode::declare_parameters() {
@@ -165,4 +156,33 @@ void WiimoteDriverNode::publish_battery_info() {
   msg.battery_percentage = device_.get_battery();
 
   wiimote_battery_publisher_->publish(msg);
+}
+
+void WiimoteDriverNode::publish_accelerometer() {
+  WiimoteAccelerometerData accel_data = device_.get_accelerometer_state();
+
+  racerbot_wiimote_msgs::msg::WiimoteAccelerometer msg;
+  msg.header.stamp = this->now();
+
+  msg.x = accel_data.x;
+  msg.y = accel_data.y;
+  msg.z = accel_data.z;
+
+  wiimote_accelerometer_publisher_->publish(msg);
+}
+
+int main(int argc, char **argv) {
+  rclcpp::init(argc, argv);
+
+  try {
+    rclcpp::spin(std::make_shared<WiimoteDriverNode>());
+  } catch (const std::exception &e) {
+    RCLCPP_FATAL(rclcpp::get_logger("wiimote_driver_node"), "Fatal error: %s",
+                 e.what());
+    rclcpp::shutdown();
+    return 1;
+  }
+
+  rclcpp::shutdown();
+  return 0;
 }

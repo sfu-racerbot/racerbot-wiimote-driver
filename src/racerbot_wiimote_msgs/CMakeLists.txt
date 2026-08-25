@@ -13,6 +13,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/WiimoteBattery.msg"
   "msg/WiimoteButtons.msg"
   "msg/WiimoteLED.msg"
+  "msg/WiimoteAccelerometer.msg"
   DEPENDENCIES std_msgs
 )
 
