@@ -3,6 +3,7 @@
 #include "racerbot_wiimote_msgs/msg/wiimote_battery.hpp"
 #include "racerbot_wiimote_msgs/msg/wiimote_buttons.hpp"
 #include "racerbot_wiimote_msgs/msg/wiimote_led.hpp"
+#include "racerbot_wiimote_msgs/msg/wiimote_rumble.hpp"
 #include "wiimote_device.hpp"
 
 #include <algorithm>
@@ -22,6 +23,7 @@ constexpr char wiimoteButtonsTopicName[] = "/wiimote/buttons";
 constexpr char wiimoteLEDTopicName[] = "/wiimote/led";
 constexpr char wiimoteBatteryTopicName[] = "/wiimote/battery";
 constexpr char wiimoteAccelerometerTopicName[] = "/wiimote/accel";
+constexpr char wiimoteRumbleTopicName[] = "/wiimote/rumble";
 
 } // namespace
 
@@ -47,6 +49,13 @@ WiimoteDriverNode::WiimoteDriverNode()
           wiimoteLEDTopicName, 1,
           [this](racerbot_wiimote_msgs::msg::WiimoteLED::SharedPtr msg) {
             this->led_callback(msg);
+          });
+
+  wiimote_rumble_subscriber_ =
+      this->create_subscription<racerbot_wiimote_msgs::msg::WiimoteRumble>(
+          wiimoteRumbleTopicName, 1,
+          [this](racerbot_wiimote_msgs::msg::WiimoteRumble::SharedPtr msg) {
+            this->rumble_callback(msg);
           });
 
   timer_ = this->create_wall_timer(std::chrono::milliseconds(poll_period_ms),
@@ -279,6 +288,11 @@ float WiimoteDriverNode::accelerometer_y_to_joy(int raw_y) {
       std::copysign(output_magnitude, filtered_accelerometer_y_);
 
   return static_cast<float>(output);
+}
+
+void WiimoteDriverNode::rumble_callback(
+    const racerbot_wiimote_msgs::msg::WiimoteRumble::SharedPtr msg) {
+  device_.set_rumble(msg->enabled);
 }
 
 int main(int argc, char **argv) {

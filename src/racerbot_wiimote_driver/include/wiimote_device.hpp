@@ -52,7 +52,11 @@ public:
   // between 0-100)
   uint8_t get_battery() const;
 
+  // Returns the current values of the Wiimote's accelerometer
   WiimoteAccelerometerData get_accelerometer_state() const;
+
+  // Sets the Wiimote's rumble feature on/off
+  void set_rumble(bool enabled);
 
 private:
   explicit WiimoteDevice(struct xwii_iface *core_iface,

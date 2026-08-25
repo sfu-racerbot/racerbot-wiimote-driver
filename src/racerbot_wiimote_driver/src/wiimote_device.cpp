@@ -244,3 +244,11 @@ uint8_t WiimoteDevice::get_battery() const {
 WiimoteAccelerometerData WiimoteDevice::get_accelerometer_state() const {
   return accelerometer_data_;
 }
+
+void WiimoteDevice::set_rumble(bool enabled) {
+  int err = xwii_iface_rumble(core_iface_, enabled);
+  if (err) {
+    throw std::runtime_error(
+        "Failed to set rumble (Error Code: " + std::to_string(err) + ")");
+  }
+}

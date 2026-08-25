@@ -2,7 +2,8 @@
 
 A ROS 2 driver node that interfaces with a Nintendo Wiimote (Wii Remote) for robot teleoperation and status monitoring.
 
-The node publishes standard joystick messages to `/joy` (`sensor_msgs/msg/Joy`) and provides custom topics for raw Wiimote sensor data and LED control.
+The node publishes standard joystick messages to `/joy` (`sensor_msgs/msg/Joy`) and provides custom topics for raw Wiimote sensor data and control over various components
+in the Wiimote
 
 The code is split into two main classes:
 - `WiimoteDevice` A C++ wrapper around `xwiimote`
@@ -14,6 +15,7 @@ The code is split into two main classes:
 * [x] Standard `/joy` teleop mapping (A, B, and 2 buttons mapped to accelerate, brake, and deadman switch).
 * [x] Motion control / accelerometer mapping to joystick axes.
 * [x] Onboard LED status indicators with customizable overrides.
+* [x] Control over the Wiimote's rumble motor
 * [x] Dedicated ROS 2 topics for reading raw battery, accelerometer, and button states.
 
 ---
@@ -78,6 +80,7 @@ Configurable launch parameters are defined in [`launch/wiimote_driver_launch.py`
 | Topic | Message Type | Description |
 | --- | --- | --- |
 | `/wiimote/led` | `racerbot_wii_msgs/msg/WiimoteLED` | Set Wiimote LED states. *(Pass `disable_deadman_led:=true` parameter when overriding manually).* |
+| `/wiimote/rumble` | `racerbot_wii_msgs/msg/WiimoteRumble` | Either enables or disables the rumble motor built into the Wiimote |
 
 ---
 

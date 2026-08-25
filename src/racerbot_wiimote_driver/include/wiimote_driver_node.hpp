@@ -5,6 +5,7 @@
 #include "racerbot_wiimote_msgs/msg/wiimote_battery.hpp"
 #include "racerbot_wiimote_msgs/msg/wiimote_buttons.hpp"
 #include "racerbot_wiimote_msgs/msg/wiimote_led.hpp"
+#include "racerbot_wiimote_msgs/msg/wiimote_rumble.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/joy.hpp"
 #include "wiimote_device.hpp"
@@ -38,6 +39,8 @@ private:
 
   rclcpp::Subscription<racerbot_wiimote_msgs::msg::WiimoteLED>::SharedPtr
       wiimote_led_subscriber_;
+  rclcpp::Subscription<racerbot_wiimote_msgs::msg::WiimoteRumble>::SharedPtr
+      wiimote_rumble_subscriber_;
 
   void declare_parameters();
 
@@ -49,6 +52,8 @@ private:
 
   void
   led_callback(const racerbot_wiimote_msgs::msg::WiimoteLED::SharedPtr msg);
+  void rumble_callback(
+      const racerbot_wiimote_msgs::msg::WiimoteRumble::SharedPtr msg);
 
   float accelerometer_y_to_joy(int raw_y);
 
