@@ -43,7 +43,7 @@ upright.
 - **LED 0 (Player One LED):** Indicates the Wiimote is connected.
 - **LED 1 (Player Two LED):** Indicates the "deadman" switch is engaged, meaning your autonomous code will run (if you have a proper deadman switch built into your code)
 
-You can easily change the LED behaviour using the `WiimoteDevice::set_led` function.
+You can easily change the LED behaviour by publishing `racerbot_wii_msgs::msg::WiimoteLED` messages to `/wiimote/led`.
 
 ## Known Issues/Troubleshooting
 
