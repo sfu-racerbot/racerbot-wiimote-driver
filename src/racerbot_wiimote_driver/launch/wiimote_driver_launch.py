@@ -173,7 +173,6 @@ def generate_launch_description():
 
     return LaunchDescription([
         joy_topic_arg,
-        publisher_queue_depth_arg,
         poll_period_ms_arg,
         accelerate_button_index_arg,
         brake_button_index_arg,
