@@ -34,7 +34,13 @@ ros2 launch racerbot_wiimote_driver wiimote_driver_launch.py
 - `accelerate_button_index` Index in `Joy.buttons` that reflects the accelerate (A) button. (default: `1`)
 - `brake_button_index` Index in `Joy.buttons` that reflects the brake (B) button. (default: `2`)
 - `deadman_button_index` Index in `Joy.buttons` that reflects the deadman (2) button. (default: `4`)
+- `disable_deadman_led` Disables the LED indicator when the deadman switch is engaged. Useful when manually controlling LEDs.
 
+### ROS2 Topics
+- `/wiimote/battery` Publishes the Wiimote's current battery percentage. Uses the `racerbot_wii_msgs::msg::WiimoteBattery` message type.
+- `/wiimote/led` A topic in which you can publish messages to control the LEDs on the Wiimote. It is highly recommended to pass the ROS2 parameter `disable_deadman_led` when manually controlling the LEDs. Uses the `racerbot_wii_msgs::msg::WiimoteLED`.
+- `/wiimote/buttons` Returns which buttons on the Wiimote are being pressed at the current moment in time. Uses the `racerbot_wii_msgs::msg::WiimoteButtons` message type.
+- `/wiimote/accel` Returns the current data from the Wiimote's accelerometer. Uses the `racerbot_wii_msgs::msg::WiimoteAccelerometer` message type.
 
 ### Wiimote LED Reference
 The driver sets the LEDs on the Wiimote to indicate various things to the user. Here is what each LED means, moving from left to right on the Wiimote being held
@@ -43,7 +49,7 @@ upright.
 - **LED 0 (Player One LED):** Indicates the Wiimote is connected.
 - **LED 1 (Player Two LED):** Indicates the "deadman" switch is engaged, meaning your autonomous code will run (if you have a proper deadman switch built into your code)
 
-You can easily change the LED behaviour using the `WiimoteDevice::set_led` function.
+You can easily change the LED behaviour by publishing `racerbot_wii_msgs::msg::WiimoteLED` messages to `/wiimote/led`.
 
 ## Known Issues/Troubleshooting
 

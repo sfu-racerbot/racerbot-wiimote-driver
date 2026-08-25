@@ -5,7 +5,15 @@
 
 #include <optional>
 #include <string>
+#include <sys/poll.h>
 #include <unordered_map>
+
+// Represents the current state of the Wiimote's accelerometer
+struct WiimoteAccelerometerData {
+  int x;
+  int y;
+  int z;
+};
 
 // RAII wrapper around a single xwiimote core interface.
 //
@@ -40,8 +48,15 @@ public:
   // Sets the specified LED (0-3, from left to right) on/off.
   void set_led(unsigned int led_number, bool on);
 
+  // Returns the current battery level of the Wiimote as a percentage (integer
+  // between 0-100)
+  uint8_t get_battery() const;
+
+  WiimoteAccelerometerData get_accelerometer_state() const;
+
 private:
-  explicit WiimoteDevice(struct xwii_iface *iface);
+  explicit WiimoteDevice(struct xwii_iface *core_iface,
+                         struct xwii_iface *accelerometer_iface);
 
   // Finds the device path of the first available Wiimote, or nullopt if
   // none is currently connected.
@@ -53,20 +68,23 @@ private:
 
   // True if at least one event is ready to be read right now.
   // Throws std::runtime_error on a genuine poll() failure.
-  bool has_events() const;
+  bool has_events();
 
-  // Reads and returns the next pending event, or std::nullopt once there
-  // are no more events to read right now (i.e. would-block).
-  // Throws std::runtime_error on a genuine read error.
-  std::optional<xwii_event> next_event();
+  void drain_events(xwii_iface *iface);
 
   // Applies a single dispatched event to button_state_, if relevant.
   void apply_event(const xwii_event &event);
 
-  struct xwii_iface *iface_ = nullptr;
-  int fd_ = -1;
+  struct xwii_iface *core_iface_ = nullptr;
+  struct xwii_iface *accelerometer_iface_ = nullptr;
+
+  int core_fd_ = -1;
+  int accelerometer_fd_ = -1;
+
+  struct pollfd pfds_[2] = {};
   std::unordered_map<unsigned int, bool> button_state_;
   bool led_status_[4] = {};
+  WiimoteAccelerometerData accelerometer_data_;
 };
 
 #endif

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.20)
 project(racerbot_wiimote_driver)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -9,6 +9,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(ackermann_msgs REQUIRED)
+find_package(racerbot_wiimote_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(PkgConfig REQUIRED)
 
@@ -25,14 +26,17 @@ target_link_directories(wiimote_driver_node PRIVATE ${XWIIMOTE_LIBRARY_DIRS})
 if(ament_cmake_VERSION VERSION_GREATER_EQUAL "2.7.3")
   message(STATUS "Using modern target_link_libraries() (ament_cmake ${ament_cmake_VERSION})")
   target_link_libraries(wiimote_driver_node
+    PRIVATE
     ${XWIIMOTE_LIBRARIES}
     rclcpp::rclcpp
     ${ackermann_msgs_TARGETS}
     ${sensor_msgs_TARGETS}
+    PUBLIC
+    racerbot_wiimote_msgs::racerbot_wiimote_msgs
   )
 else()
   message(STATUS "Using legacy ament_target_dependencies() (ament_cmake ${ament_cmake_VERSION})")
-  target_link_libraries(wiimote_driver_node ${XWIIMOTE_LIBRARIES})
+  target_link_libraries(wiimote_driver_node PRIVATE ${XWIIMOTE_LIBRARIES} PUBLIC racerbot_wiimote_msgs::racerbot_wiimote_msgs)
   ament_target_dependencies(wiimote_driver_node
     rclcpp
     ackermann_msgs
