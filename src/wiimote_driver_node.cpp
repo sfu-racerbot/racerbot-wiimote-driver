@@ -47,6 +47,12 @@ public:
             std::exit(1);
         }
 
+        err = xwii_iface_open(core_device, XWII_IFACE_CORE);
+        if (err) {
+            RCLCPP_ERROR(this->get_logger(), "Cannot open core interface (Error code: %d)", err);
+            std::exit(1);
+        }
+
         file_descriptors[0].fd = xwii_iface_get_fd(core_device);
         file_descriptors[0].events = POLLIN;
 
@@ -71,7 +77,7 @@ private:
     rclcpp::TimerBase::SharedPtr timer_;
 
     void poll_wiimote() {
-        int err = poll(file_descriptors, 1, -1);
+        int err = poll(file_descriptors, 1, 0);
         if (err < 0) {
             if (errno == EINTR)
                 return;
@@ -81,9 +87,9 @@ private:
 
         while ((err = xwii_iface_dispatch(core_device, &event, sizeof(event))) == 0) {
             if (event.type == XWII_EVENT_KEY) {
-                if (event.v.key.code == 4 && event.v.key.state == 1) {
+                if (event.v.key.code == XWII_KEY_A && event.v.key.state == 1) {
                     RCLCPP_INFO(this->get_logger(), "A Button Pressed\n");
-                } else if (event.v.key.code == 4 && event.v.key.state == 0) {
+                } else if (event.v.key.code == XWII_KEY_A && event.v.key.state == 0) {
                     RCLCPP_INFO(this->get_logger(), "A Button Released\n");
                 }
             }
