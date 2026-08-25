@@ -17,14 +17,28 @@ pkg_check_modules(XWIIMOTE REQUIRED libxwiimote)
 add_executable(wiimote_driver_node src/wiimote_driver_node.cpp src/wiimote_device.cpp)
 
 target_include_directories(wiimote_driver_node PRIVATE ${XWIIMOTE_INCLUDE_DIRS} include/)
-target_link_libraries(wiimote_driver_node ${XWIIMOTE_LIBRARIES})
 target_link_directories(wiimote_driver_node PRIVATE ${XWIIMOTE_LIBRARY_DIRS})
 
-ament_target_dependencies(wiimote_driver_node
-  rclcpp
-  ackermann_msgs
-  sensor_msgs
-)
+# ament_target_dependencies() was deprecated in Kilted and removed in Lyrical
+# (ament_cmake >= 2.7.3). Detect which API is available and branch accordingly
+# so this file builds cleanly on both old and new distros.
+if(ament_cmake_VERSION VERSION_GREATER_EQUAL "2.7.3")
+  message(STATUS "Using modern target_link_libraries() (ament_cmake ${ament_cmake_VERSION})")
+  target_link_libraries(wiimote_driver_node
+    ${XWIIMOTE_LIBRARIES}
+    rclcpp::rclcpp
+    ${ackermann_msgs_TARGETS}
+    ${sensor_msgs_TARGETS}
+  )
+else()
+  message(STATUS "Using legacy ament_target_dependencies() (ament_cmake ${ament_cmake_VERSION})")
+  target_link_libraries(wiimote_driver_node ${XWIIMOTE_LIBRARIES})
+  ament_target_dependencies(wiimote_driver_node
+    rclcpp
+    ackermann_msgs
+    sensor_msgs
+  )
+endif()
 
 install(TARGETS
   wiimote_driver_node
