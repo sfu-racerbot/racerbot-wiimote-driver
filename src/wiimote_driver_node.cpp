@@ -58,7 +58,7 @@ void WiimoteDriverNode::publish_joy_state() {
   joy_msg.buttons[kBrakeButton] =
       static_cast<int32_t>(device_.is_button_down(XWII_KEY_B));
   joy_msg.buttons[kDeadmanButton] =
-      static_cast<int32_t>(device_.is_button_down(XWII_KEY_Y));
+      static_cast<int32_t>(device_.is_button_down(XWII_KEY_TWO));
 
   joy_publisher_->publish(joy_msg);
 }
