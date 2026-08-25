@@ -71,6 +71,10 @@ public:
     }
 
 private:
+    const int _deadman_button = 4;
+    const int _accelerate_button = 1;
+    const int _brake_button = 2;
+
     struct xwii_iface *acceleration_device; // for accelerometer
     struct xwii_iface *core_device; // for buttons
 
@@ -79,6 +83,8 @@ private:
     struct pollfd file_descriptors[1];
 
     bool a_button_down = false;
+    bool b_button_down = false;
+    bool two_button_down = false;
     
     rclcpp::TimerBase::SharedPtr timer_;
 
@@ -102,6 +108,22 @@ private:
                     RCLCPP_INFO(this->get_logger(), "A Button Released\n");
                     a_button_down = false;
                 }
+
+                if (event.v.key.code == XWII_KEY_B && event.v.key.state == 1) {
+                    RCLCPP_INFO(this->get_logger(), "B Button Pressed\n");
+                    b_button_down = true;
+                } else if (event.v.key.code == XWII_KEY_B && event.v.key.state == 0) {
+                    RCLCPP_INFO(this->get_logger(), "B Button Released\n");
+                    b_button_down = false;
+                }
+
+                if (event.v.key.code == XWII_KEY_2 && event.v.key.state == 1) {
+                    RCLCPP_INFO(this->get_logger(), "2 Button Pressed\n");
+                    two_button_down = true;
+                } else if (event.v.key.code == XWII_KEY_2 && event.v.key.state == 0) {
+                    RCLCPP_INFO(this->get_logger(), "2 Button Released\n");
+                    two_button_down = false;
+                }
             }
         }
 
@@ -111,7 +133,11 @@ private:
         }
 
         sensor_msgs::msg::Joy joy_msg;
-        joy_msg.buttons[4] = static_cast<int>(a_button_down);
+        joy_msg.buttons[_accelerate_button] = static_cast<int>(a_button_down);
+        joy_msg.buttons[_brake_button] = static_cast<int>(b_button_down);
+        joy_msg.buttons[_deadman_button] = static_cast<int>(two_button_down);
+
+        joy_publisher_->publish(joy_msg);
     }
 };
 
