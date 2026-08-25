@@ -12,7 +12,7 @@ The code is split into two main classes:
 
 ## Features
 
-* [x] Standard `/joy` teleop mapping (A, B, and 2 buttons mapped to accelerate, brake, and deadman switch).
+* [x] Standard `/joy` teleop mapping (A, B, and 2 buttons mapped to accelerate, brake, and deadman switch. Y-Axis motion controls mapped to joystick so it works with the Wii Wheel).
 * [x] Motion control / accelerometer mapping to joystick axes.
 * [x] Onboard LED status indicators with customizable overrides.
 * [x] Control over the Wiimote's rumble motor
