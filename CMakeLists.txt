@@ -9,6 +9,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(ackermann_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
 find_package(PkgConfig REQUIRED)
 
 pkg_check_modules(XWIIMOTE REQUIRED libxwiimote)
@@ -22,6 +23,7 @@ target_link_directories(wiimote_driver_node PRIVATE ${XWIIMOTE_LIBRARY_DIRS})
 ament_target_dependencies(wiimote_driver_node
   rclcpp
   ackermann_msgs
+  sensor_msgs
 )
 
 install(TARGETS

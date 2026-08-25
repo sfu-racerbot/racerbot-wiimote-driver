@@ -1,4 +1,7 @@
 #include "rclcpp/rclcpp.hpp"
+#include <sensor_msgs/msg/joy.hpp>
+
+#include "sensor_msgs/msg/joy.hpp"
 #include "xwiimote.h"
 #include <cstdlib>
 #include <rclcpp/logging.hpp>
@@ -64,6 +67,7 @@ public:
             };
 
         timer_ = this->create_wall_timer(5ms, timer_callback);
+        joy_publisher_ = this->create_publisher<sensor_msgs::msg::Joy>("joy", 1);
     }
 
 private:
@@ -73,8 +77,12 @@ private:
     struct xwii_event event;
 
     struct pollfd file_descriptors[1];
+
+    bool a_button_down = false;
     
     rclcpp::TimerBase::SharedPtr timer_;
+
+    rclcpp::Publisher<sensor_msgs::msg::Joy>::SharedPtr joy_publisher_;
 
     void poll_wiimote() {
         int err = poll(file_descriptors, 1, 0);
@@ -89,8 +97,10 @@ private:
             if (event.type == XWII_EVENT_KEY) {
                 if (event.v.key.code == XWII_KEY_A && event.v.key.state == 1) {
                     RCLCPP_INFO(this->get_logger(), "A Button Pressed\n");
+                    a_button_down = true;
                 } else if (event.v.key.code == XWII_KEY_A && event.v.key.state == 0) {
                     RCLCPP_INFO(this->get_logger(), "A Button Released\n");
+                    a_button_down = false;
                 }
             }
         }
@@ -99,6 +109,9 @@ private:
             fprintf(stderr, "\nError reading event: %d\n", err);
             return;
         }
+
+        sensor_msgs::msg::Joy joy_msg;
+        joy_msg.buttons[4] = static_cast<int>(a_button_down);
     }
 };
 
