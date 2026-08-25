@@ -42,7 +42,7 @@ Since Wiimotes just use Bluetooth, you can connect it either using the `bluetoot
 1. Clone the repository into the `src` directory of your ROS 2 workspace:
 ```bash
 cd ~/ros2_ws/src
-git clone <repository-url>
+git clone https://github.com/sfu-racerbot/ros_wiimote_driver
 ```
 
 
