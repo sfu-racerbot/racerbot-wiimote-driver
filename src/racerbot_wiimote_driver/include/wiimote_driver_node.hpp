@@ -39,6 +39,8 @@ private:
   rclcpp::Subscription<racerbot_wiimote_msgs::msg::WiimoteLED>::SharedPtr
       wiimote_led_subscriber_;
 
+  void declare_parameters();
+
   void poll_wiimote();
   void publish_joy_state();
   void publish_button_state();
@@ -50,14 +52,8 @@ private:
 
   float accelerometer_y_to_joy(int raw_y);
 
-  // Reads all node parameters into the members above (and returns the
-  // ones only needed locally in the constructor, like topic name).
-  struct StartupParams {
-    std::string joy_topic;
-    int publisher_queue_depth;
-    int poll_period_ms;
-  };
-  StartupParams declare_parameters();
+  std::string joy_topic;
+  int poll_period_ms;
 
   // Accelerometer to Joystick input parameters
   int accelerometer_axis_index_ = 0;

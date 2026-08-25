@@ -17,7 +17,6 @@ constexpr int kDefaultAccelerateButtonIndex = 1;
 constexpr int kDefaultBrakeButtonIndex = 2;
 constexpr int kDefaultDeadmanButtonIndex = 4;
 constexpr int kDefaultPollPeriodMs = 5;
-constexpr int kDefaultPublisherQueueDepth = 1;
 
 constexpr char wiimoteButtonsTopicName[] = "/wiimote/buttons";
 constexpr char wiimoteLEDTopicName[] = "/wiimote/led";
@@ -30,30 +29,28 @@ WiimoteDriverNode::WiimoteDriverNode()
     : Node("wiimote_driver_node"), device_(WiimoteDevice::open()) {
   RCLCPP_INFO(this->get_logger(), "Wiimote driver started...");
 
-  StartupParams params = declare_parameters();
+  declare_parameters();
 
-  joy_publisher_ = this->create_publisher<sensor_msgs::msg::Joy>(
-      params.joy_topic, params.publisher_queue_depth);
+  joy_publisher_ = this->create_publisher<sensor_msgs::msg::Joy>(joy_topic, 1);
   wiimote_buttons_publisher_ =
       this->create_publisher<racerbot_wiimote_msgs::msg::WiimoteButtons>(
-          wiimoteButtonsTopicName, params.publisher_queue_depth);
+          wiimoteButtonsTopicName, 1);
   wiimote_battery_publisher_ =
       this->create_publisher<racerbot_wiimote_msgs::msg::WiimoteBattery>(
-          wiimoteBatteryTopicName, params.publisher_queue_depth);
+          wiimoteBatteryTopicName, 1);
   wiimote_accelerometer_publisher_ =
       this->create_publisher<racerbot_wiimote_msgs::msg::WiimoteAccelerometer>(
-          wiimoteAccelerometerTopicName, params.publisher_queue_depth);
+          wiimoteAccelerometerTopicName, 1);
 
   wiimote_led_subscriber_ =
       this->create_subscription<racerbot_wiimote_msgs::msg::WiimoteLED>(
-          wiimoteLEDTopicName, params.publisher_queue_depth,
+          wiimoteLEDTopicName, 1,
           [this](racerbot_wiimote_msgs::msg::WiimoteLED::SharedPtr msg) {
             this->led_callback(msg);
           });
 
-  timer_ =
-      this->create_wall_timer(std::chrono::milliseconds(params.poll_period_ms),
-                              [this]() { poll_wiimote(); });
+  timer_ = this->create_wall_timer(std::chrono::milliseconds(poll_period_ms),
+                                   [this]() { poll_wiimote(); });
 
   // Make sure first player light is enabled to show the Wiimote is connected
   device_.set_led(0, true);
@@ -108,14 +105,10 @@ void WiimoteDriverNode::publish_joy_state() {
   joy_publisher_->publish(joy_msg);
 }
 
-WiimoteDriverNode::StartupParams WiimoteDriverNode::declare_parameters() {
-  StartupParams params;
+void WiimoteDriverNode::declare_parameters() {
 
-  params.joy_topic = this->declare_parameter<std::string>("joy_topic", "joy");
-  params.publisher_queue_depth =
-      static_cast<int>(this->declare_parameter<int64_t>(
-          "publisher_queue_depth", kDefaultPublisherQueueDepth));
-  params.poll_period_ms = static_cast<int>(
+  joy_topic = this->declare_parameter<std::string>("joy_topic", "joy");
+  poll_period_ms = static_cast<int>(
       this->declare_parameter<int64_t>("poll_period_ms", kDefaultPollPeriodMs));
 
   accelerate_button_index_ = static_cast<int>(this->declare_parameter<int64_t>(
@@ -183,8 +176,6 @@ WiimoteDriverNode::StartupParams WiimoteDriverNode::declare_parameters() {
   }
 
   num_axes_ = static_cast<size_t>(accelerometer_axis_index_) + 1;
-
-  return params;
 }
 
 void WiimoteDriverNode::publish_button_state() {
