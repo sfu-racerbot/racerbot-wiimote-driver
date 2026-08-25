@@ -1,6 +1,7 @@
 #ifndef WIIMOTE_DRIVER_NODE_HPP_
 #define WIIMOTE_DRIVER_NODE_HPP_
 
+#include "racerbot_wiimote_msgs/msg/wiimote_buttons_raw.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/joy.hpp"
 #include "wiimote_device.hpp"
@@ -29,10 +30,12 @@ private:
   rclcpp::Publisher<sensor_msgs::msg::Joy>::SharedPtr joy_publisher_;
 
   // publishers for raw Wiimote messages
+  rclcpp::Publisher<racerbot_wiimote_msgs::msg::WiimoteButtonsRaw>::SharedPtr
+      raw_buttons_publisher_;
 
   void poll_wiimote();
   void publish_joy_state();
-  void log_transition(const char *label, unsigned int key_code, bool &was_down);
+  void publish_raw_button_state();
 
   // Reads all node parameters into the members above (and returns the
   // ones only needed locally in the constructor, like topic name).

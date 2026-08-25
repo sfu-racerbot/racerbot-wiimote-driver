@@ -1,4 +1,5 @@
 #include "wiimote_driver_node.hpp"
+#include "racerbot_wiimote_msgs/msg/wiimote_buttons_raw.hpp"
 
 #include <chrono>
 #include <rclcpp/logging.hpp>
@@ -11,6 +12,8 @@ constexpr int kDefaultDeadmanButtonIndex = 4;
 constexpr int kDefaultPollPeriodMs = 5;
 constexpr int kDefaultPublisherQueueDepth = 1;
 
+constexpr char wiimoteButtonsTopicName[] = "/wiimote/buttons";
+
 } // namespace
 
 WiimoteDriverNode::WiimoteDriverNode()
@@ -21,6 +24,9 @@ WiimoteDriverNode::WiimoteDriverNode()
 
   joy_publisher_ = this->create_publisher<sensor_msgs::msg::Joy>(
       params.joy_topic, params.publisher_queue_depth);
+  raw_buttons_publisher_ =
+      this->create_publisher<racerbot_wiimote_msgs::msg::WiimoteButtonsRaw>(
+          wiimoteButtonsTopicName, params.publisher_queue_depth);
 
   timer_ =
       this->create_wall_timer(std::chrono::milliseconds(params.poll_period_ms),
@@ -33,10 +39,7 @@ WiimoteDriverNode::WiimoteDriverNode()
 void WiimoteDriverNode::poll_wiimote() {
   try {
     device_.update();
-
-    log_transition("A", XWII_KEY_A, a_button_down_);
-    log_transition("B", XWII_KEY_B, b_button_down_);
-    log_transition("2", XWII_KEY_TWO, two_button_down_);
+    publish_raw_button_state();
 
     // Have a light on to show the deadman switch is being held
     if (two_button_down_) {
@@ -48,16 +51,6 @@ void WiimoteDriverNode::poll_wiimote() {
     publish_joy_state();
   } catch (const std::exception &e) {
     RCLCPP_ERROR(this->get_logger(), "%s", e.what());
-  }
-}
-
-void WiimoteDriverNode::log_transition(const char *label, unsigned int key_code,
-                                       bool &was_down) {
-  const bool is_down = device_.is_button_down(key_code);
-  if (is_down != was_down) {
-    was_down = is_down;
-    RCLCPP_DEBUG(this->get_logger(), "%s Button %s", label,
-                 is_down ? "Pressed" : "Released");
   }
 }
 
@@ -116,4 +109,23 @@ WiimoteDriverNode::StartupParams WiimoteDriverNode::declare_parameters() {
       1);
 
   return params;
+}
+
+void WiimoteDriverNode::publish_raw_button_state() {
+  racerbot_wiimote_msgs::msg::WiimoteButtonsRaw msg;
+  msg.header.stamp = this->now();
+
+  msg.a = this->device_.is_button_down(XWII_KEY_A);
+  msg.b = this->device_.is_button_down(XWII_KEY_B);
+  msg.one = this->device_.is_button_down(XWII_KEY_ONE);
+  msg.two = this->device_.is_button_down(XWII_KEY_TWO);
+  msg.home = this->device_.is_button_down(XWII_KEY_HOME);
+  msg.plus = this->device_.is_button_down(XWII_KEY_PLUS);
+  msg.minus = this->device_.is_button_down(XWII_KEY_MINUS);
+  msg.up = this->device_.is_button_down(XWII_KEY_UP);
+  msg.down = this->device_.is_button_down(XWII_KEY_DOWN);
+  msg.left = this->device_.is_button_down(XWII_KEY_LEFT);
+  msg.right = this->device_.is_button_down(XWII_KEY_RIGHT);
+
+  raw_buttons_publisher_->publish(msg);
 }
