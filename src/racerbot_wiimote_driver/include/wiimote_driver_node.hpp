@@ -28,6 +28,8 @@ private:
   rclcpp::TimerBase::SharedPtr timer_;
   rclcpp::Publisher<sensor_msgs::msg::Joy>::SharedPtr joy_publisher_;
 
+  // publishers for raw Wiimote messages
+
   void poll_wiimote();
   void publish_joy_state();
   void log_transition(const char *label, unsigned int key_code, bool &was_down);
