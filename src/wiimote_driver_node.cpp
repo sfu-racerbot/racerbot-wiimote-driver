@@ -3,6 +3,9 @@
 #include <cstdlib>
 #include <rclcpp/logging.hpp>
 #include <sys/poll.h>
+#include <chrono>
+
+using namespace std::chrono_literals;
 
 // function to find the device path of the Wiimote
 char *find_wiimote() {
@@ -49,6 +52,11 @@ public:
 
         free(path);
 
+        auto timer_callback = 
+            [this]() -> void {
+                poll_wiimote();
+            };
+
         timer_ = this->create_wall_timer(5ms, timer_callback);
     }
 
@@ -62,16 +70,16 @@ private:
     
     rclcpp::TimerBase::SharedPtr timer_;
 
-    void timer_callback() {
-        err = poll(fds, 1, -1);
+    void poll_wiimote() {
+        int err = poll(file_descriptors, 1, -1);
         if (err < 0) {
             if (errno == EINTR)
-                continue;
-            RCLCPP_ERROR(this->get_logger(), "Failed to poll file descriptors")
-            break;
+                return;
+            RCLCPP_ERROR(this->get_logger(), "Failed to poll file descriptors");
+            return;
         }
 
-        while ((err = xwii_iface_dispatch(core_dev, &event, sizeof(event))) == 0) {
+        while ((err = xwii_iface_dispatch(core_device, &event, sizeof(event))) == 0) {
             if (event.type == XWII_EVENT_KEY) {
                 if (event.v.key.code == 4 && event.v.key.state == 1) {
                     RCLCPP_INFO(this->get_logger(), "A Button Pressed\n");
@@ -83,11 +91,15 @@ private:
 
         if (err != -EAGAIN) {
             fprintf(stderr, "\nError reading event: %d\n", err);
-            break;
+            return;
         }
     }
 };
 
-int main()
+int main(int argc, char** argv)
 {
+    rclcpp::init(argc, argv);
+    rclcpp::spin(std::make_shared<WiimoteDriverNode>());
+    rclcpp::shutdown();
+    return 0;
 }
