@@ -48,15 +48,44 @@ public:
         file_descriptors[0].events = POLLIN;
 
         free(path);
+
+        timer_ = this->create_wall_timer(5ms, timer_callback);
     }
 
 private:
     struct xwii_iface *acceleration_device; // for accelerometer
     struct xwii_iface *core_device; // for buttons
 
-    struct pollfd file_descriptors[2];
+    struct xwii_event event;
+
+    struct pollfd file_descriptors[1];
     
     rclcpp::TimerBase::SharedPtr timer_;
+
+    void timer_callback() {
+        err = poll(fds, 1, -1);
+        if (err < 0) {
+            if (errno == EINTR)
+                continue;
+            RCLCPP_ERROR(this->get_logger(), "Failed to poll file descriptors")
+            break;
+        }
+
+        while ((err = xwii_iface_dispatch(core_dev, &event, sizeof(event))) == 0) {
+            if (event.type == XWII_EVENT_KEY) {
+                if (event.v.key.code == 4 && event.v.key.state == 1) {
+                    RCLCPP_INFO(this->get_logger(), "A Button Pressed\n");
+                } else if (event.v.key.code == 4 && event.v.key.state == 0) {
+                    RCLCPP_INFO(this->get_logger(), "A Button Released\n");
+                }
+            }
+        }
+
+        if (err != -EAGAIN) {
+            fprintf(stderr, "\nError reading event: %d\n", err);
+            break;
+        }
+    }
 };
 
 int main()
