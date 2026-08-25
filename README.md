@@ -27,6 +27,15 @@ colcon build --packages-select racerbot_wiimote_driver
 ros2 launch racerbot_wiimote_driver wiimote_driver_launch.py
 ```
 
+### ROS2 Parameters
+- `joy_topic` Topic to publish `sensor_msgs/Joy` messages on. (default: `joy`)
+- `publisher_queue_depth` QoS queue depth for the joy publisher. (default: `1`)
+- `poll_period_ms` How often (ms) to poll the Wiimote for input. (default: `5`)
+- `accelerate_button_index` Index in `Joy.buttons` that reflects the accelerate (A) button. (default: `1`)
+- `brake_button_index` Index in `Joy.buttons` that reflects the brake (B) button. (default: `2`)
+- `deadman_button_index` Index in `Joy.buttons` that reflects the deadman (2) button. (default: `4`)
+
+
 ### Wiimote LED Reference
 The driver sets the LEDs on the Wiimote to indicate various things to the user. Here is what each LED means, moving from left to right on the Wiimote being held
 upright.

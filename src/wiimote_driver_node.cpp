@@ -1,17 +1,30 @@
 #include "wiimote_driver_node.hpp"
 
+#include <chrono>
 #include <rclcpp/logging.hpp>
 #include <xwiimote.h>
 
-using namespace std::chrono_literals;
+namespace {
+constexpr int kDefaultAccelerateButtonIndex = 1;
+constexpr int kDefaultBrakeButtonIndex = 2;
+constexpr int kDefaultDeadmanButtonIndex = 4;
+constexpr int kDefaultPollPeriodMs = 5;
+constexpr int kDefaultPublisherQueueDepth = 1;
+
+} // namespace
 
 WiimoteDriverNode::WiimoteDriverNode()
     : Node("wiimote_driver_node"), device_(WiimoteDevice::open()) {
   RCLCPP_INFO(this->get_logger(), "Wiimote driver started...");
 
-  joy_publisher_ = this->create_publisher<sensor_msgs::msg::Joy>("joy", 1);
+  StartupParams params = declare_parameters();
 
-  timer_ = this->create_wall_timer(5ms, [this]() { poll_wiimote(); });
+  joy_publisher_ = this->create_publisher<sensor_msgs::msg::Joy>(
+      params.joy_topic, params.publisher_queue_depth);
+
+  timer_ =
+      this->create_wall_timer(std::chrono::milliseconds(params.poll_period_ms),
+                              [this]() { poll_wiimote(); });
 
   // Make sure first player light is enabled to show the Wiimote is connected
   device_.set_led(0, true);
@@ -51,13 +64,13 @@ void WiimoteDriverNode::log_transition(const char *label, unsigned int key_code,
 void WiimoteDriverNode::publish_joy_state() {
   sensor_msgs::msg::Joy joy_msg;
   joy_msg.header.stamp = this->now();
-  joy_msg.buttons.resize(kNumButtons, 0);
+  joy_msg.buttons.resize(num_buttons_, 0);
 
-  joy_msg.buttons[kAccelerateButton] =
+  joy_msg.buttons[accelerate_button_index_] =
       static_cast<int32_t>(device_.is_button_down(XWII_KEY_A));
-  joy_msg.buttons[kBrakeButton] =
+  joy_msg.buttons[brake_button_index_] =
       static_cast<int32_t>(device_.is_button_down(XWII_KEY_B));
-  joy_msg.buttons[kDeadmanButton] =
+  joy_msg.buttons[deadman_button_index_] =
       static_cast<int32_t>(device_.is_button_down(XWII_KEY_TWO));
 
   joy_publisher_->publish(joy_msg);
@@ -77,4 +90,30 @@ int main(int argc, char **argv) {
 
   rclcpp::shutdown();
   return 0;
+}
+
+WiimoteDriverNode::StartupParams WiimoteDriverNode::declare_parameters() {
+  StartupParams params;
+
+  params.joy_topic = this->declare_parameter<std::string>("joy_topic", "joy");
+  params.publisher_queue_depth =
+      static_cast<int>(this->declare_parameter<int64_t>(
+          "publisher_queue_depth", kDefaultPublisherQueueDepth));
+  params.poll_period_ms = static_cast<int>(
+      this->declare_parameter<int64_t>("poll_period_ms", kDefaultPollPeriodMs));
+
+  accelerate_button_index_ = static_cast<int>(this->declare_parameter<int64_t>(
+      "accelerate_button_index", kDefaultAccelerateButtonIndex));
+  brake_button_index_ = static_cast<int>(this->declare_parameter<int64_t>(
+      "brake_button_index", kDefaultBrakeButtonIndex));
+  deadman_button_index_ = static_cast<int>(this->declare_parameter<int64_t>(
+      "deadman_button_index", kDefaultDeadmanButtonIndex));
+
+  // Size the buttons array to fit whichever configured index is largest.
+  num_buttons_ = static_cast<size_t>(
+      std::max({accelerate_button_index_, brake_button_index_,
+                deadman_button_index_}) +
+      1);
+
+  return params;
 }
