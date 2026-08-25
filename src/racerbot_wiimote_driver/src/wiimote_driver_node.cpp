@@ -1,5 +1,6 @@
 #include "wiimote_driver_node.hpp"
 #include "racerbot_wiimote_msgs/msg/wiimote_buttons_raw.hpp"
+#include "racerbot_wiimote_msgs/msg/wiimote_led.hpp"
 
 #include <chrono>
 #include <rclcpp/logging.hpp>
@@ -13,6 +14,7 @@ constexpr int kDefaultPollPeriodMs = 5;
 constexpr int kDefaultPublisherQueueDepth = 1;
 
 constexpr char wiimoteButtonsTopicName[] = "/wiimote/buttons";
+constexpr char wiimoteLEDTopicName[] = "/wiimote/led";
 
 } // namespace
 
@@ -28,6 +30,13 @@ WiimoteDriverNode::WiimoteDriverNode()
       this->create_publisher<racerbot_wiimote_msgs::msg::WiimoteButtonsRaw>(
           wiimoteButtonsTopicName, params.publisher_queue_depth);
 
+  raw_led_subscriber_ =
+      this->create_subscription<racerbot_wiimote_msgs::msg::WiimoteLED>(
+          wiimoteLEDTopicName, params.publisher_queue_depth,
+          [this](racerbot_wiimote_msgs::msg::WiimoteLED::SharedPtr msg) {
+            this->led_callback(msg);
+          });
+
   timer_ =
       this->create_wall_timer(std::chrono::milliseconds(params.poll_period_ms),
                               [this]() { poll_wiimote(); });
@@ -42,10 +51,12 @@ void WiimoteDriverNode::poll_wiimote() {
     publish_raw_button_state();
 
     // Have a light on to show the deadman switch is being held
-    if (two_button_down_) {
-      device_.set_led(1, true);
-    } else {
-      device_.set_led(1, false);
+    if (!disable_deadman_led_) {
+      if (device_.is_button_down(XWII_KEY_TWO)) {
+        device_.set_led(1, true);
+      } else {
+        device_.set_led(1, false);
+      }
     }
 
     publish_joy_state();
@@ -102,6 +113,9 @@ WiimoteDriverNode::StartupParams WiimoteDriverNode::declare_parameters() {
   deadman_button_index_ = static_cast<int>(this->declare_parameter<int64_t>(
       "deadman_button_index", kDefaultDeadmanButtonIndex));
 
+  this->declare_parameter<bool>("disable_deadman_led", false);
+  disable_deadman_led_ = this->get_parameter("disable_deadman_led").as_bool();
+
   // Size the buttons array to fit whichever configured index is largest.
   num_buttons_ = static_cast<size_t>(
       std::max({accelerate_button_index_, brake_button_index_,
@@ -128,4 +142,12 @@ void WiimoteDriverNode::publish_raw_button_state() {
   msg.right = this->device_.is_button_down(XWII_KEY_RIGHT);
 
   raw_buttons_publisher_->publish(msg);
+}
+
+void WiimoteDriverNode::led_callback(
+    racerbot_wiimote_msgs::msg::WiimoteLED::SharedPtr msg) {
+  device_.set_led(0, msg->led_1);
+  device_.set_led(1, msg->led_2);
+  device_.set_led(2, msg->led_3);
+  device_.set_led(3, msg->led_4);
 }

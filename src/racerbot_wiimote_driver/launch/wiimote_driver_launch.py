@@ -35,6 +35,11 @@ def generate_launch_description():
         default_value='4',
         description='Index in Joy.buttons that reflects the deadman (2) button.',
     )
+    disable_deadman_led = DeclareLaunchArgument(
+        'disable_deadman_led',
+        default_value='false',
+        description='Disables the built in deadman switch LED, used when you want to have full control over the LEDs on the Wiimote'
+    )
 
     wiimote_driver_node = Node(
         package='racerbot_wiimote_driver',
@@ -49,6 +54,7 @@ def generate_launch_description():
             'accelerate_button_index': LaunchConfiguration('accelerate_button_index'),
             'brake_button_index': LaunchConfiguration('brake_button_index'),
             'deadman_button_index': LaunchConfiguration('deadman_button_index'),
+            'disable_deadman_led': LaunchConfiguration('disable_deadman_led')
         }],
     )
 
@@ -59,5 +65,6 @@ def generate_launch_description():
         accelerate_button_index_arg,
         brake_button_index_arg,
         deadman_button_index_arg,
+        disable_deadman_led,
         wiimote_driver_node,
     ])
