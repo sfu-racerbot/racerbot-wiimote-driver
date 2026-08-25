@@ -44,3 +44,49 @@ upright.
 - **LED 1 (Player Two LED):** Indicates the "deadman" switch is engaged, meaning your autonomous code will run (if you have a proper deadman switch built into your code)
 
 You can easily change the LED behaviour using the `WiimoteDevice::set_led` function.
+
+## Known Issues/Troubleshooting
+
+### Troubleshooting: LED permission denied (error -13)
+ 
+If `set_led()` throws with error code `-13` (`EACCES`), it's a Linux file
+permissions issue, not a bug in the driver. The Wiimote's LED brightness
+files under `/sys/class/leds/` are owned by `root` and default to
+read-only for other users, so writing to them without elevated
+permissions fails.
+ 
+**Fix (one-time):**
+ 
+```bash
+sudo chmod 666 /sys/class/leds/*:blue:p*/brightness
+```
+ 
+**Fix (permanent, recommended):** Create a udev rule so this is applied
+automatically every time a Wiimote connects, without needing `sudo`:
+ 
+```bash
+sudo tee /etc/udev/rules.d/99-wiimote-leds.rules <<'EOF'
+ACTION=="add", SUBSYSTEM=="leds", KERNEL=="*:blue:p[0-3]", RUN+="/bin/chmod 666 /sys/class/leds/%k/brightness"
+EOF
+ 
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+```
+ 
+Then disconnect and reconnect the Wiimote so the rule applies to the new
+device.
+ 
+**Verify it's actually a permissions issue:**
+ 
+```bash
+ls -l /sys/class/leds/*:blue:p0/brightness
+```
+ 
+If the owner/group is `root:root` and the mode doesn't include write
+access for your user (e.g. `-rw-r--r--`), that confirms it. You can also
+test a direct write to rule out anything in the driver code:
+ 
+```bash
+echo 1 | sudo tee /sys/class/leds/*:blue:p0/brightness   # should succeed
+echo 1 | tee /sys/class/leds/*:blue:p0/brightness         # fails without the fix above
+```
