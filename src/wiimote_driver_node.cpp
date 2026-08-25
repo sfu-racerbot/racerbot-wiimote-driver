@@ -1,24 +1,24 @@
 #include "rclcpp/rclcpp.hpp"
-#include <sensor_msgs/msg/joy.hpp>
-
 #include "sensor_msgs/msg/joy.hpp"
 #include "xwiimote.h"
+
+#include <chrono>
 #include <cstdlib>
+#include <cstring>
 #include <rclcpp/logging.hpp>
 #include <sys/poll.h>
-#include <chrono>
 
 using namespace std::chrono_literals;
 
-// function to find the device path of the Wiimote
+// Find the device path of the first available Wiimote.
+// Caller owns the returned string and must free() it.
 char *find_wiimote() {
   struct xwii_monitor *mon;
-  char *ent, *res = NULL;
+  char *ent, *res = nullptr;
 
-  // Create a monitor to scan for xwiimote devices
   mon = xwii_monitor_new(false, false);
   if (!mon) {
-    return NULL;
+    return nullptr;
   }
 
   ent = xwii_monitor_poll(mon);
@@ -31,120 +31,143 @@ char *find_wiimote() {
   return res;
 }
 
-class WiimoteDriverNode : public rclcpp::Node
-{
+class WiimoteDriverNode : public rclcpp::Node {
 public:
-    WiimoteDriverNode() : Node("wiimote_driver_node")
-    {
-        RCLCPP_INFO(this->get_logger(), "Wiimote driver started...");
+  WiimoteDriverNode() : Node("wiimote_driver_node") {
+    RCLCPP_INFO(this->get_logger(), "Wiimote driver started...");
 
-        char* path = find_wiimote();
-        if (!path) {
-            RCLCPP_ERROR(this->get_logger(), "Failed to locate Wiimote");
-            std::exit(1);
-        }
-
-        int err = xwii_iface_new(&core_device, path);
-        if (err) {
-            RCLCPP_ERROR(this->get_logger(), "Cannot open Wiimote device (Error code: %d)\n", err);
-            std::exit(1);
-        }
-
-        err = xwii_iface_open(core_device, XWII_IFACE_CORE);
-        if (err) {
-            RCLCPP_ERROR(this->get_logger(), "Cannot open core interface (Error code: %d)", err);
-            std::exit(1);
-        }
-
-        file_descriptors[0].fd = xwii_iface_get_fd(core_device);
-        file_descriptors[0].events = POLLIN;
-
-        free(path);
-
-        auto timer_callback = 
-            [this]() -> void {
-                poll_wiimote();
-            };
-
-        timer_ = this->create_wall_timer(5ms, timer_callback);
-        joy_publisher_ = this->create_publisher<sensor_msgs::msg::Joy>("joy", 1);
+    char *path = find_wiimote();
+    if (!path) {
+      RCLCPP_ERROR(this->get_logger(), "Failed to locate Wiimote");
+      throw std::runtime_error("No Wiimote found");
     }
+
+    int err = xwii_iface_new(&core_device_, path);
+    free(path);
+    if (err) {
+      RCLCPP_ERROR(this->get_logger(),
+                   "Cannot open Wiimote device (Error code: %d)", err);
+      throw std::runtime_error("Failed to create Wiimote interface");
+    }
+
+    err = xwii_iface_open(core_device_, XWII_IFACE_CORE);
+    if (err) {
+      RCLCPP_ERROR(this->get_logger(),
+                   "Cannot open core interface (Error code: %d)", err);
+      xwii_iface_unref(core_device_);
+      core_device_ = nullptr;
+      throw std::runtime_error("Failed to open core interface");
+    }
+
+    file_descriptor_.fd = xwii_iface_get_fd(core_device_);
+    file_descriptor_.events = POLLIN;
+
+    joy_publisher_ = this->create_publisher<sensor_msgs::msg::Joy>("joy", 1);
+
+    timer_ = this->create_wall_timer(5ms, [this]() { poll_wiimote(); });
+  }
+
+  ~WiimoteDriverNode() override {
+    if (core_device_) {
+      xwii_iface_close(core_device_, XWII_IFACE_CORE);
+      xwii_iface_unref(core_device_);
+    }
+  }
 
 private:
-    const int _deadman_button = 4;
-    const int _accelerate_button = 1;
-    const int _brake_button = 2;
+  // Button indices within the published Joy message's buttons array.
+  static constexpr int kAccelerateButton = 1;
+  static constexpr int kBrakeButton = 2;
+  static constexpr int kDeadmanButton = 4;
+  static constexpr size_t kNumButtons = 5; // large enough for the highest index above
 
-    struct xwii_iface *acceleration_device; // for accelerometer
-    struct xwii_iface *core_device; // for buttons
+  struct xwii_iface *core_device_ = nullptr; // buttons interface
+  struct pollfd file_descriptor_ {};
+
+  bool a_button_down_ = false;
+  bool b_button_down_ = false;
+  bool two_button_down_ = false;
+
+  rclcpp::TimerBase::SharedPtr timer_;
+  rclcpp::Publisher<sensor_msgs::msg::Joy>::SharedPtr joy_publisher_;
+
+  void poll_wiimote() {
+    int ready = poll(&file_descriptor_, 1, 0);
+    if (ready < 0) {
+      if (errno == EINTR) {
+        return;
+      }
+      RCLCPP_ERROR(this->get_logger(), "Failed to poll file descriptor");
+      return;
+    }
+    if (ready == 0) {
+      // No event available right now; nothing to dispatch this cycle.
+      return;
+    }
 
     struct xwii_event event;
+    int err;
+    while ((err = xwii_iface_dispatch(core_device_, &event, sizeof(event))) == 0) {
+      if (event.type != XWII_EVENT_KEY) {
+        continue;
+      }
 
-    struct pollfd file_descriptors[1];
+      const bool pressed = (event.v.key.state == 1);
 
-    bool a_button_down = false;
-    bool b_button_down = false;
-    bool two_button_down = false;
-    
-    rclcpp::TimerBase::SharedPtr timer_;
-
-    rclcpp::Publisher<sensor_msgs::msg::Joy>::SharedPtr joy_publisher_;
-
-    void poll_wiimote() {
-        int err = poll(file_descriptors, 1, 0);
-        if (err < 0) {
-            if (errno == EINTR)
-                return;
-            RCLCPP_ERROR(this->get_logger(), "Failed to poll file descriptors");
-            return;
-        }
-
-        while ((err = xwii_iface_dispatch(core_device, &event, sizeof(event))) == 0) {
-            if (event.type == XWII_EVENT_KEY) {
-                if (event.v.key.code == XWII_KEY_A && event.v.key.state == 1) {
-                    RCLCPP_INFO(this->get_logger(), "A Button Pressed\n");
-                    a_button_down = true;
-                } else if (event.v.key.code == XWII_KEY_A && event.v.key.state == 0) {
-                    RCLCPP_INFO(this->get_logger(), "A Button Released\n");
-                    a_button_down = false;
-                }
-
-                if (event.v.key.code == XWII_KEY_B && event.v.key.state == 1) {
-                    RCLCPP_INFO(this->get_logger(), "B Button Pressed\n");
-                    b_button_down = true;
-                } else if (event.v.key.code == XWII_KEY_B && event.v.key.state == 0) {
-                    RCLCPP_INFO(this->get_logger(), "B Button Released\n");
-                    b_button_down = false;
-                }
-
-                if (event.v.key.code == XWII_KEY_2 && event.v.key.state == 1) {
-                    RCLCPP_INFO(this->get_logger(), "2 Button Pressed\n");
-                    two_button_down = true;
-                } else if (event.v.key.code == XWII_KEY_2 && event.v.key.state == 0) {
-                    RCLCPP_INFO(this->get_logger(), "2 Button Released\n");
-                    two_button_down = false;
-                }
-            }
-        }
-
-        if (err != -EAGAIN) {
-            fprintf(stderr, "\nError reading event: %d\n", err);
-            return;
-        }
-
-        sensor_msgs::msg::Joy joy_msg;
-        joy_msg.buttons[_accelerate_button] = static_cast<int>(a_button_down);
-        joy_msg.buttons[_brake_button] = static_cast<int>(b_button_down);
-        joy_msg.buttons[_deadman_button] = static_cast<int>(two_button_down);
-
-        joy_publisher_->publish(joy_msg);
+      switch (event.v.key.code) {
+        case XWII_KEY_A:
+          a_button_down_ = pressed;
+          RCLCPP_INFO(this->get_logger(), "A Button %s",
+                      pressed ? "Pressed" : "Released");
+          break;
+        case XWII_KEY_B:
+          b_button_down_ = pressed;
+          RCLCPP_INFO(this->get_logger(), "B Button %s",
+                      pressed ? "Pressed" : "Released");
+          break;
+        case XWII_KEY_2:
+          two_button_down_ = pressed;
+          RCLCPP_INFO(this->get_logger(), "2 Button %s",
+                      pressed ? "Pressed" : "Released");
+          break;
+        default:
+          break;
+      }
     }
+
+    if (err != -EAGAIN) {
+      RCLCPP_ERROR(this->get_logger(), "Error reading event: %d", err);
+      return;
+    }
+
+    publish_joy_state();
+  }
+
+  void publish_joy_state() {
+    sensor_msgs::msg::Joy joy_msg;
+    joy_msg.header.stamp = this->now();
+    joy_msg.buttons.resize(kNumButtons, 0);
+
+    joy_msg.buttons[kAccelerateButton] = static_cast<int32_t>(a_button_down_);
+    joy_msg.buttons[kBrakeButton] = static_cast<int32_t>(b_button_down_);
+    joy_msg.buttons[kDeadmanButton] = static_cast<int32_t>(two_button_down_);
+
+    joy_publisher_->publish(joy_msg);
+  }
 };
 
-int main(int argc, char** argv)
-{
-    rclcpp::init(argc, argv);
+int main(int argc, char **argv) {
+  rclcpp::init(argc, argv);
+
+  try {
     rclcpp::spin(std::make_shared<WiimoteDriverNode>());
+  } catch (const std::exception &e) {
+    RCLCPP_FATAL(rclcpp::get_logger("wiimote_driver_node"),
+                 "Fatal error: %s", e.what());
     rclcpp::shutdown();
-    return 0;
+    return 1;
+  }
+
+  rclcpp::shutdown();
+  return 0;
 }
