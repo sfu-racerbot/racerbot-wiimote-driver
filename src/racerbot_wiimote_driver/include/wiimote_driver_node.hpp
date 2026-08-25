@@ -48,6 +48,8 @@ private:
   void
   led_callback(const racerbot_wiimote_msgs::msg::WiimoteLED::SharedPtr msg);
 
+  float accelerometer_y_to_joy(int raw_y);
+
   // Reads all node parameters into the members above (and returns the
   // ones only needed locally in the constructor, like topic name).
   struct StartupParams {
@@ -56,6 +58,28 @@ private:
     int poll_period_ms;
   };
   StartupParams declare_parameters();
+
+  // Accelerometer to Joystick input parameters
+  int accelerometer_axis_index_ = 0;
+
+  double accelerometer_y_min_ = -100.0;
+  double accelerometer_y_center_ = 0.0;
+  double accelerometer_y_max_ = 100.0;
+
+  bool invert_accelerometer_y_ = false;
+
+  // 1.0 = no filtering, smaller values = more smoothing
+  double accelerometer_filter_alpha_ = 0.2;
+
+  // Hysteresis thresholds in normalized joystick units.
+  double accelerometer_activation_threshold_ = 0.12;
+  double accelerometer_release_threshold_ = 0.08;
+
+  size_t num_axes_ = 1;
+
+  bool accelerometer_filter_initialized_ = false;
+  bool accelerometer_axis_active_ = false;
+  double filtered_accelerometer_y_ = 0.0;
 };
 
 #endif // WIIMOTE_DRIVER_NODE_HPP_

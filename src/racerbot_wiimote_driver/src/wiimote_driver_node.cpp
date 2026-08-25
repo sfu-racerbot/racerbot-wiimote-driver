@@ -5,8 +5,11 @@
 #include "racerbot_wiimote_msgs/msg/wiimote_led.hpp"
 #include "wiimote_device.hpp"
 
+#include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <rclcpp/logging.hpp>
+#include <stdexcept>
 #include <xwiimote.h>
 
 namespace {
@@ -81,7 +84,15 @@ void WiimoteDriverNode::poll_wiimote() {
 void WiimoteDriverNode::publish_joy_state() {
   sensor_msgs::msg::Joy joy_msg;
   joy_msg.header.stamp = this->now();
+
+  if (accelerometer_axis_index_ < 0) {
+    RCLCPP_ERROR(get_logger(), "Invalid accelerometer_axis_index: %d",
+                 accelerometer_axis_index_);
+    return;
+  }
+
   joy_msg.buttons.resize(num_buttons_, 0);
+  joy_msg.axes.resize(2);
 
   joy_msg.buttons[accelerate_button_index_] =
       static_cast<int32_t>(device_.is_button_down(XWII_KEY_A));
@@ -89,6 +100,10 @@ void WiimoteDriverNode::publish_joy_state() {
       static_cast<int32_t>(device_.is_button_down(XWII_KEY_B));
   joy_msg.buttons[deadman_button_index_] =
       static_cast<int32_t>(device_.is_button_down(XWII_KEY_TWO));
+
+  const WiimoteAccelerometerData accel = device_.get_accelerometer_state();
+
+  joy_msg.axes.at(accelerometer_axis_index_) = accelerometer_y_to_joy(accel.y);
 
   joy_publisher_->publish(joy_msg);
 }
@@ -118,6 +133,56 @@ WiimoteDriverNode::StartupParams WiimoteDriverNode::declare_parameters() {
       std::max({accelerate_button_index_, brake_button_index_,
                 deadman_button_index_}) +
       1);
+
+  accelerometer_axis_index_ = static_cast<int>(
+      this->declare_parameter<int64_t>("accelerometer_axis_index", 0));
+
+  accelerometer_y_min_ =
+      this->declare_parameter<double>("accelerometer_y_min", -100.0);
+
+  accelerometer_y_center_ =
+      this->declare_parameter<double>("accelerometer_y_center", 0.0);
+
+  accelerometer_y_max_ =
+      this->declare_parameter<double>("accelerometer_y_max", 100.0);
+
+  invert_accelerometer_y_ =
+      this->declare_parameter<bool>("invert_accelerometer_y", false);
+
+  accelerometer_filter_alpha_ =
+      this->declare_parameter<double>("accelerometer_filter_alpha", 0.2);
+
+  accelerometer_activation_threshold_ = this->declare_parameter<double>(
+      "accelerometer_activation_threshold", 0.12);
+
+  accelerometer_release_threshold_ =
+      this->declare_parameter<double>("accelerometer_release_threshold", 0.08);
+
+  if (accelerometer_axis_index_ < 0) {
+    throw std::invalid_argument(
+        "accelerometer_axis_index must be non-negative");
+  }
+
+  if (!(accelerometer_y_min_ < accelerometer_y_center_ &&
+        accelerometer_y_center_ < accelerometer_y_max_)) {
+    throw std::invalid_argument(
+        "Expected accelerometer_y_min < accelerometer_y_center "
+        "< accelerometer_y_max");
+  }
+
+  if (accelerometer_filter_alpha_ <= 0.0 || accelerometer_filter_alpha_ > 1.0) {
+    throw std::invalid_argument(
+        "accelerometer_filter_alpha must be in the range (0, 1]");
+  }
+
+  if (accelerometer_release_threshold_ < 0.0 ||
+      accelerometer_activation_threshold_ > 1.0 ||
+      accelerometer_release_threshold_ >= accelerometer_activation_threshold_) {
+    throw std::invalid_argument(
+        "Expected 0 <= release threshold < activation threshold <= 1");
+  }
+
+  num_axes_ = static_cast<size_t>(accelerometer_axis_index_) + 1;
 
   return params;
 }
@@ -169,6 +234,60 @@ void WiimoteDriverNode::publish_accelerometer() {
   msg.z = accel_data.z;
 
   wiimote_accelerometer_publisher_->publish(msg);
+}
+
+float WiimoteDriverNode::accelerometer_y_to_joy(int raw_y) {
+  const double delta = static_cast<double>(raw_y) - accelerometer_y_center_;
+
+  // Support asymmetric calibration around the center.
+  const double span = delta >= 0.0
+                          ? accelerometer_y_max_ - accelerometer_y_center_
+                          : accelerometer_y_center_ - accelerometer_y_min_;
+
+  double normalized = delta / span;
+  normalized = std::clamp(normalized, -1.0, 1.0);
+
+  if (invert_accelerometer_y_) {
+    normalized = -normalized;
+  }
+
+  // Exponential moving-average low-pass filter.
+  if (!accelerometer_filter_initialized_) {
+    filtered_accelerometer_y_ = normalized;
+    accelerometer_filter_initialized_ = true;
+  } else {
+    filtered_accelerometer_y_ +=
+        accelerometer_filter_alpha_ * (normalized - filtered_accelerometer_y_);
+  }
+
+  const double magnitude = std::abs(filtered_accelerometer_y_);
+
+  // Schmitt-trigger-style hysteresis.
+  if (accelerometer_axis_active_) {
+    if (magnitude <= accelerometer_release_threshold_) {
+      accelerometer_axis_active_ = false;
+    }
+  } else {
+    if (magnitude >= accelerometer_activation_threshold_) {
+      accelerometer_axis_active_ = true;
+    }
+  }
+
+  if (!accelerometer_axis_active_) {
+    return 0.0F;
+  }
+
+  // Remove and rescale the dead zone so the remaining range still
+  // reaches 1.0.
+  const double output_magnitude =
+      std::clamp((magnitude - accelerometer_release_threshold_) /
+                     (1.0 - accelerometer_release_threshold_),
+                 0.0, 1.0);
+
+  const double output =
+      std::copysign(output_magnitude, filtered_accelerometer_y_);
+
+  return static_cast<float>(output);
 }
 
 int main(int argc, char **argv) {
