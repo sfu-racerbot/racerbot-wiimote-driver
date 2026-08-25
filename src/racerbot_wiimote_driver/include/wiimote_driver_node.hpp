@@ -1,9 +1,9 @@
 #ifndef WIIMOTE_DRIVER_NODE_HPP_
 #define WIIMOTE_DRIVER_NODE_HPP_
 
-#include "racerbot_wiimote_msgs/msg/wiimote_buttons_raw.hpp"
+#include "racerbot_wiimote_msgs/msg/wiimote_battery.hpp"
+#include "racerbot_wiimote_msgs/msg/wiimote_buttons.hpp"
 #include "racerbot_wiimote_msgs/msg/wiimote_led.hpp"
-#include "racerbot_wiimote_msgs/msg/wiimote_raw.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/joy.hpp"
 #include "wiimote_device.hpp"
@@ -28,18 +28,18 @@ private:
   rclcpp::Publisher<sensor_msgs::msg::Joy>::SharedPtr joy_publisher_;
 
   // publishers/subscribers for raw Wiimote messages
-  rclcpp::Publisher<racerbot_wiimote_msgs::msg::WiimoteButtonsRaw>::SharedPtr
-      raw_buttons_publisher_;
-  rclcpp::Publisher<racerbot_wiimote_msgs::msg::WiimoteRaw>::SharedPtr
-      raw_wiimote_publisher_;
+  rclcpp::Publisher<racerbot_wiimote_msgs::msg::WiimoteButtons>::SharedPtr
+      wiimote_buttons_publisher_;
+  rclcpp::Publisher<racerbot_wiimote_msgs::msg::WiimoteBattery>::SharedPtr
+      wiimote_battery_publisher_;
 
   rclcpp::Subscription<racerbot_wiimote_msgs::msg::WiimoteLED>::SharedPtr
-      raw_led_subscriber_;
+      wiimote_led_subscriber_;
 
   void poll_wiimote();
   void publish_joy_state();
-  void publish_raw_button_state();
-  void publish_raw_info();
+  void publish_button_state();
+  void publish_battery_info();
 
   void
   led_callback(const racerbot_wiimote_msgs::msg::WiimoteLED::SharedPtr msg);
